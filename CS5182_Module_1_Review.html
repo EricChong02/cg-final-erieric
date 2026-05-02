@@ -147,7 +147,7 @@ summary:hover{background:var(--soft)}
 
   <p>考试中 M01 相关题目约占 <strong>~8%</strong>（约 1 道题）。核心考察点：</p>
   <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
-    <li><strong>管线阶段顺序</strong>：能按正确顺序写出 8 个阶段及各阶段所在的坐标系</li>
+    <li><strong>管线阶段顺序</strong>：能按 Revision 原图写出管线顺序，并说明 Rasterization 后的可见性处理如何衔接 M05</li>
     <li><strong>顺序的设计理由</strong>：Back-face Removal 在 Clipping 之前 → 约 50% 背面被淘汰，减少 Clipping 工作量</li>
     <li><strong>透视变换的位置</strong>：在 Clipping 之前 → 裁剪平面变为轴对齐，裁剪简化为 2D 坐标比较</li>
     <li><strong>三大渲染范式区别</strong>：光栅化 (Geometry-first) vs 光线追踪 (Pixel-first) vs 实时渲染（光栅化基础 + 优化）</li>
@@ -165,7 +165,7 @@ summary:hover{background:var(--soft)}
       <div class="badge-num">1</div>
       <div>
         <h2>渲染管线的完整阶段</h2>
-        <p class="lead">光栅化渲染管线的 8 个阶段，按执行顺序</p>
+        <p class="lead">Revision 原图顺序为主；隐藏面处理作为后续可见性考点展开</p>
       </div>
     </div>
     <span class="exam-chip">⚡ 必考：默写管线顺序</span>
@@ -201,12 +201,12 @@ summary:hover{background:var(--soft)}
       <span>图元 → 覆盖的像素集合 · <span class="label">Screen Space</span></span>
     </div>
     <div class="pipe">
-      <b>7. Hidden Surface Removal</b>
-      <span>Z-buffer 逐像素深度比较 · <span class="label">Screen Space</span></span>
+      <b>7. Shading</b>
+      <span>Phong 光照模型计算可见像素颜色 · <span class="label">Screen Space</span></span>
     </div>
     <div class="pipe">
-      <b>8. Shading</b>
-      <span>Phong 光照模型计算每像素颜色 · <span class="label">Screen Space</span></span>
+      <b>8. Output Image</b>
+      <span>写入 frame buffer，得到最终图像 · <span class="label">Pixel Space</span></span>
     </div>
   </div>
 
@@ -215,7 +215,7 @@ summary:hover{background:var(--soft)}
   </div>
 
   <div class="note">
-    <strong>按 Revision 原图默写：</strong>Input object models → World coordinate transformation → Perspective transformation → Back-face removal → Clipping → Rasterization → Shading → Output image。下方把 Rasterization 后的 image-space visibility（Z-buffer / Painter's）展开出来，是为了连接 M05 的隐藏面消除考点；若题目要求复述 Revision pipeline，按原图顺序写。
+    <strong>按 Revision 原图默写：</strong>Input object models → World coordinate transformation → Perspective transformation → Back-face removal → Clipping → Rasterization → Shading → Output image。M05 会把 Rasterization 后的 image-space visibility（Z-buffer / Painter's）单独展开；若题目要求复述 Revision pipeline，按原图顺序写，不要把展开考点插进原图顺序。
   </div>
 
   <p style="margin-top:20px"><strong>各阶段在 GPU 可编程管线中的执行位置（M09 关联）：</strong></p>
@@ -250,14 +250,14 @@ summary:hover{background:var(--soft)}
     </thead>
     <tbody>
       <tr><td>Modeling Transform</td><td><strong>Object/Local Space</strong></td><td><strong>World Space</strong></td><td>平移、旋转、缩放，建立物体间相对位置</td><td>第 1 → 2 步</td></tr>
-      <tr><td>View Transform</td><td><strong>World Space</strong></td><td><strong>View/Camera Space</strong></td><td>透视变换：视锥体 → 长方体，保留 z</td><td>第 2 → 3 步</td></tr>
-      <tr><td>Projection</td><td><strong>View Space</strong></td><td><strong>Screen/NDC Space</strong></td><td>将长方体映射到规范设备坐标（NDC）：x,y ∈ [-1,1]</td><td>第 5 → 6 步</td></tr>
-      <tr><td>Viewport Transform</td><td><strong>NDC Space</strong></td><td><strong>Pixel Coordinates</strong></td><td>映射到实际屏幕像素坐标</td><td>Rasterization 内部</td></tr>
+      <tr><td>Perspective Transform</td><td><strong>World Space</strong></td><td><strong>View Space</strong></td><td>以 COP 为中心变换，视锥体 → 长方体，保留 z</td><td>第 2 → 3 步</td></tr>
+      <tr><td>Projection / Screen Mapping</td><td><strong>View Space</strong></td><td><strong>Screen Space</strong></td><td>投影到屏幕平面，为 rasterization 的像素覆盖判断做准备</td><td>第 5 → 6 步</td></tr>
+      <tr><td>Rasterization</td><td><strong>Screen Space</strong></td><td><strong>Pixel Coordinates</strong></td><td>把图元转换为覆盖的像素集合</td><td>第 6 步</td></tr>
     </tbody>
   </table>
 
   <div class="note">
-    📌 <strong>记忆技巧：</strong>Object → World → View → Screen 四个空间，管线从第 1 到第 6 步依次完成这些变换。第 7–8 步都在 Screen Space 中执行。
+    📌 <strong>记忆技巧：</strong>Object → World → View → Screen 四个空间，管线从第 1 到第 6 步依次完成这些变换。第 7 步在 Screen Space 计算颜色，第 8 步写入 frame buffer。
   </div>
 
   <div class="grid-3">
@@ -377,7 +377,7 @@ summary:hover{background:var(--soft)}
         <td><strong>反射/折射</strong></td>
         <td>❌ 难以精确处理</td>
         <td>✅ 递归追踪自然处理</td>
-        <td>近似（Screen Space Reflection 等）</td>
+        <td>近似处理，课程不要求具体算法</td>
       </tr>
       <tr>
         <td><strong>全局光照</strong></td>

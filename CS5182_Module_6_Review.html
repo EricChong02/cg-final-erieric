@@ -128,11 +128,11 @@ summary:hover{background:var(--soft)}
     </article>
     <article class="concept-card">
       <h3>本章产出</h3>
-      <p>能解释空间走样的根本原因；能区分五种反走样方法的原理、优缺点和适用场景；能默写 Accumulation Buffer 独有优势。</p>
+      <p>能解释空间走样的根本原因；能区分五种反走样方法的原理、优缺点和适用场景；能默写 Accumulation Buffer 相对普通 supersampling 的额外优势。</p>
     </article>
     <article class="concept-card">
       <h3>高频考法</h3>
-      <p>各反走样方法的原理和对比（P6-2）；Accumulation Buffer 独有优势（运动模糊/景深）；走样根因分析（P6-1）。</p>
+      <p>各反走样方法的原理和对比（P6-2）；Accumulation Buffer 的额外优势（运动模糊/景深）；走样根因分析（P6-1）。</p>
     </article>
   </div>
   <div class="bridge-note">
@@ -288,7 +288,7 @@ summary:hover{background:var(--soft)}
     <span class="exam-chip">⚡ 理论依据必考</span>
   </div>
 
-  <p><strong>定义：</strong>要完整重建频率不超过 $F_{\max}$ 的连续信号，采样频率 $N$ 必须至少为 $2F_{\max}$（Nyquist 频率）。</p>
+  <p><strong>定义：</strong>要完整重建频率不超过 <span class="math-inline">F<sub>max</sub></span> 的连续信号，采样频率 <span class="math-inline">N</span> 必须至少为 <span class="math-inline">2F<sub>max</sub></span>（Nyquist 频率）。</p>
 
   <div class="formula">
     <strong>Nyquist 条件：</strong> N ≥ 2 · F<sub>max</sub><br><br>
@@ -340,7 +340,7 @@ summary:hover{background:var(--soft)}
     <div class="card">
       <h3>✅ 优点</h3>
       <ul>
-        <li>实现简单，可由硬件直接支持（GeForce 等 GPU 的 MSAA）</li>
+        <li>实现简单，可由硬件直接支持（讲义提到 GeForce 类图形加速卡实现）</li>
         <li>视觉效果明显改善</li>
       </ul>
     </div>
@@ -359,7 +359,7 @@ summary:hover{background:var(--soft)}
   </div>
 
   <!-- 5.2 Accumulation Buffer -->
-  <div class="mini-title">5.2 累积缓冲（Accumulation Buffer）⚠️ 独有优势考点</div>
+  <div class="mini-title">5.2 累积缓冲（Accumulation Buffer）⚠️ 额外优势考点</div>
 
   <p><strong>核心原理：</strong>通过多次渲染将图像在缓冲区中累加平均，用时间换空间，解决超采样内存消耗过大的问题。</p>
 
@@ -393,9 +393,9 @@ summary:hover{background:var(--soft)}
   </div>
 
   <div class="warn">
-    ⚠️ <strong>超级考点：Accumulation Buffer 的独有优势</strong><br><br>
-    <strong>运动模糊（Motion Blur）</strong>和<strong>景深（Depth of Field）</strong>是 Accumulation Buffer <strong>独有</strong>的能力——超采样做不到！<br><br>
-    原因：超采样只是在一个瞬间对同一帧的多个子像素位置采样；而 Accumulation Buffer 可以跨<strong>时间</strong>（多帧）或跨<strong>相机位置</strong>（多视角）累加，这是本质区别。<br><br>
+    ⚠️ <strong>超级考点：Accumulation Buffer 相对普通 Supersampling 的额外优势</strong><br><br>
+    <strong>运动模糊（Motion Blur）</strong>和<strong>景深（Depth of Field）</strong>是 Accumulation Buffer 的额外能力。<br><br>
+    原因：普通 supersampling 只是在一个瞬间对同一帧的多个子像素位置采样；而 Accumulation Buffer 可以跨<strong>时间</strong>（多帧）或跨<strong>相机位置</strong>（多视角）累加，这是本质区别。<br><br>
     📌 <strong>考场直接写：</strong>"Accumulation Buffer 区别于 Supersampling 的关键优势是可以实现 Motion Blur 和 Depth of Field。"
   </div>
 
@@ -527,14 +527,14 @@ summary:hover{background:var(--soft)}
         <td>高分辨率渲染后降采样</td>
         <td><span class="label red">高</span>（k² 倍帧缓冲）</td>
         <td><span class="label orange">高</span></td>
-        <td>实现简单，可硬件加速（MSAA）；<strong>只能减少不能消除走样</strong></td>
+        <td>实现简单，可硬件加速；<strong>只能减少不能消除走样</strong></td>
       </tr>
       <tr>
         <td><strong>Accumulation Buffer</strong></td>
         <td>多次偏移渲染后平均</td>
         <td><span class="label green">低</span>（仅一个额外缓冲）</td>
         <td><span class="label red">很高</span>（多次完整渲染）</td>
-        <td><strong>可实现运动模糊、景深</strong>（超采样做不到！）</td>
+        <td><strong>可实现运动模糊、景深</strong>（相对普通 supersampling 的额外能力）</td>
       </tr>
       <tr>
         <td><strong>Stochastic Sampling</strong></td>
@@ -603,7 +603,7 @@ summary:hover{background:var(--soft)}
   <div class="answer-box">
     <p><strong>答案框架（五个维度各一句话）：</strong></p>
     <p>① <strong>Supersampling：</strong>高分辨率渲染 → 低通滤波 → 降采样。简单但耗内存（k² 倍），只能减少不能消除走样。</p>
-    <p>② <strong>Accumulation Buffer：</strong>多次偏移渲染 → 累加平均。省内存但多次完整渲染，<strong>独有 Motion Blur 和 Depth of Field</strong>。</p>
+    <p>② <strong>Accumulation Buffer：</strong>多次偏移渲染 → 累加平均。省内存但多次完整渲染，可实现 <strong>Motion Blur 和 Depth of Field</strong>。</p>
     <p>③ <strong>Stochastic Sampling：</strong>随机非均匀采样点代替规则网格。将锯齿转化为噪声（人眼容忍度高），相同样本数下效果更好。</p>
     <p>④ <strong>Catmull's Algorithm：</strong>裁剪多边形到每个像素，计算精确覆盖面积加权。最精确但计算量极大。</p>
     <p>⑤ <strong>A-buffer：</strong>每像素链表 + 子像素掩码，用位运算计算覆盖率。代价与可见片段数有关，可处理透明。</p>
@@ -613,7 +613,7 @@ summary:hover{background:var(--soft)}
   <div class="answer-box">
     <p><strong>标准答案（两句话）：</strong></p>
     <p>① <strong>内存优势：</strong>Accumulation Buffer 只需一个正常分辨率的额外缓冲区，而 Supersampling 需要 k² 倍帧缓冲。</p>
-    <p>② <strong>独有能力：</strong>Accumulation Buffer 可以实现<strong>运动模糊（Motion Blur，沿时间轴累加）</strong>和<strong>景深（Depth of Field，改变相机位置累加）</strong>——这是 Supersampling 做不到的，因为 Supersampling 只在一个瞬间对单帧采样。</p>
+    <p>② <strong>额外能力：</strong>Accumulation Buffer 可以实现<strong>运动模糊（Motion Blur，沿时间轴累加）</strong>和<strong>景深（Depth of Field，改变相机位置累加）</strong>；普通 Supersampling 只在一个瞬间对单帧采样，不提供这两个效果。</p>
   </div>
 
   <div class="mini-title">题型 4：Nyquist 定理在图形学中的含义</div>
@@ -741,7 +741,7 @@ summary:hover{background:var(--soft)}
         <li>时间走样主因：<strong>空间走样导致</strong></li>
         <li>时间走样次因：时间域欠采样 → Wagon Wheel Effect</li>
         <li>Supersampling：高分辨率渲染 → 降采样。只能<strong>减少</strong>不能消除</li>
-        <li>Accumulation Buffer：多次渲染 → 累加。独有 <strong>Motion Blur + DOF</strong></li>
+        <li>Accumulation Buffer：多次渲染 → 累加。额外支持 <strong>Motion Blur + DOF</strong></li>
         <li>Stochastic：随机采样 → 锯齿变噪声</li>
         <li>Catmull：精确面积加权 → 理论最优</li>
         <li>A-buffer：链表 + bitmask → 代价与片段数相关</li>
@@ -751,7 +751,7 @@ summary:hover{background:var(--soft)}
       <p class="mini-title">考场容易遗漏的细节</p>
       <ul class="checklist">
         <li>超采样"不能消除"走样——考场上极易写成"消除"</li>
-        <li>Accumulation Buffer 的 Motion Blur / DOF 是<strong>独有</strong>优势</li>
+        <li>Accumulation Buffer 的 Motion Blur / DOF 是相对普通 supersampling 的额外优势</li>
         <li>随机采样的"随机"是指采样点<strong>位置</strong>随机，不是颜色随机</li>
         <li>Catmull 和 A-buffer 的关系：Catmull 是理论框架，A-buffer 是其实用化</li>
         <li>A-buffer 的子像素掩码本质仍是超采样（固定子像素位置）</li>

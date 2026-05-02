@@ -406,11 +406,11 @@ details[open] summary { border-bottom: 1px solid var(--border2); }
   </div>
 
   <div class="warn">
-    <strong>z-fighting 问题：</strong>当两个表面深度值非常接近时，有限的深度缓冲精度可能导致两个面交替出现在同一像素上，产生闪烁的伪影。解决方案：提高 z-buffer 位深度（如 24-bit → 32-bit）、调整近/远裁剪平面距离。
+    <strong>z-fighting 问题：</strong>当两个表面深度值非常接近时，有限的深度缓冲精度可能导致两个面交替出现在同一像素上，产生闪烁的伪影。
   </div>
 
   <div class="answer-box">
-    <strong>Z-buffer 是"当前主流图形加速器实现"的方法——这是讲义原话，必须记住。</strong>几乎所有现代 GPU 都在硬件层面集成了 Z-buffer（深度测试单元），结合 Early-Z / Hi-Z 等优化技术进行深度剔除。
+    <strong>Z-buffer 是"当前主流图形加速器实现"的方法——这是讲义原话，必须记住。</strong>几乎所有现代 GPU 都在硬件层面集成深度比较 / Z-buffer 机制。
   </div>
 </section>
 

@@ -363,7 +363,7 @@ details[open] summary::before { content: "▾ "; }
           <tbody>
             <tr>
               <td><span class="label">一点透视</span></td>
-              <td>平行于两个坐标面（如平行于 XY 平面，即垂直于 Z 轴）</td>
+              <td>平行于两个坐标轴（例如投影面平行于 XY 平面，即同时平行 X、Y 轴）</td>
               <td><strong>1</strong></td>
               <td>只有 z 方向线汇聚到消失点</td>
             </tr>
@@ -375,7 +375,7 @@ details[open] summary::before { content: "▾ "; }
             </tr>
             <tr>
               <td><span class="label red">三点透视</span></td>
-              <td>不平行于任何坐标面</td>
+              <td>不平行于任何坐标轴</td>
               <td><strong>3</strong></td>
               <td>三个主轴方向各有一个消失点</td>
             </tr>
@@ -775,8 +775,7 @@ details[open] summary::before { content: "▾ "; }
           <p><strong>适用题型：</strong>球形、圆形或曲线边界裁剪区域，不要求背一个新算法。</p>
           <p>① <strong>先说明困难：</strong>标准 Cohen-Sutherland 和 Sutherland-Hodgman 面向矩形/多边形边界，不能直接套到曲面边界。</p>
           <p>② <strong>可行思路 A：</strong>把曲线/曲面边界离散采样，近似成多边形/多面体，再用多边形裁剪流程逐边处理。</p>
-          <p>③ <strong>可行思路 B：</strong>直接用裁剪面/裁剪曲面的方程做 inside/outside 测试，并在跨越边界处求交点。</p>
-          <p>④ <strong>考场结论：</strong>本质仍是判断 inside/outside + 保留内部部分 + 计算边界交点。</p>
+          <p>③ <strong>考场结论：</strong>本质仍是判断 inside/outside + 保留内部部分 + 计算边界交点；按讲义答案，优先写"近似为多边形/多面体后再裁剪"。</p>
         </div>
       </section>
 
@@ -868,9 +867,9 @@ details[open] summary::before { content: "▾ "; }
           <summary>Q5. 一点/两点/三点透视的判断依据</summary>
           <div class="detail-body">
             <p>消失点数量由<strong>投影面与坐标轴的关系</strong>决定：</p>
-            <p>· <strong>1-point</strong>：投影面平行于两个坐标面 → 只有一组轴方向线汇聚<br>
+            <p>· <strong>1-point</strong>：投影面平行于两个坐标轴 → 只有一组轴方向线汇聚<br>
             · <strong>2-point</strong>：投影面平行于恰好一个坐标轴 → 两组轴方向线汇聚<br>
-            · <strong>3-point</strong>：投影面不平行于任何坐标面 → 三组轴方向线全部汇聚</p>
+            · <strong>3-point</strong>：投影面不平行于任何坐标轴 → 三组轴方向线全部汇聚</p>
             <p>理解关键：只有<strong>不平行于投影面</strong>的平行线组才会汇聚到消失点。</p>
           </div>
         </details>
@@ -891,8 +890,7 @@ details[open] summary::before { content: "▾ "; }
           <div class="detail-body">
             <p><strong>参考答案：</strong>先指出标准线段/多边形裁剪算法默认使用线性边界或多边形窗口；圆形/球形边界不能直接用固定 TBRL 区域码完整解决。</p>
             <p><strong>方法 1：</strong>把曲线边界采样近似为多边形边界，再按 Sutherland-Hodgman 的 inside/outside 规则逐边裁剪。</p>
-            <p><strong>方法 2：</strong>直接用边界方程判断 inside/outside。例如圆形裁剪用 (x-c<sub>x</sub>)² + (y-c<sub>y</sub>)² ≤ r²，球形裁剪用 (x-c<sub>x</sub>)² + (y-c<sub>y</sub>)² + (z-c<sub>z</sub>)² ≤ r²；线段跨越边界时求交点。</p>
-            <p><strong>得分句：</strong>无论窗口形状如何，裁剪的核心都是 inside/outside 分类和边界交点计算。</p>
+            <p><strong>得分句：</strong>按讲义口径，把非线性边界近似成多边形/多面体边界后，再使用多边形裁剪的 inside/outside 分类和边界交点计算。</p>
           </div>
         </details>
       </section>
@@ -931,7 +929,7 @@ details[open] summary::before { content: "▾ "; }
               <li>S-H 的 4 种 case：外→内（交点+P）、内→内（P）、内→外（交点）、外→外（无）</li>
               <li>消失点数量由投影面与坐标轴关系决定</li>
               <li>透视变换后裁剪面轴对齐 → 裁剪简化为 2D 比较</li>
-              <li>非矩形裁剪：离散成多边形或用边界方程做 inside/outside 测试</li>
+              <li>非矩形裁剪：按讲义答案，离散成多边形/多面体后再做 inside/outside 测试</li>
             </ul>
           </div>
         </div>

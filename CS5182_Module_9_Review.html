@@ -385,7 +385,7 @@ summary:hover{background:var(--soft)}
 
   <div class="pipeline">
     <div class="pipe"><b>Step 1</b><span>以光源为视点，找到物体的<strong>轮廓边（Silhouette Edges）</strong></span></div>
-    <div class="pipe"><b>Step 2</b><span>从轮廓边向光源方向延伸，构建<strong>阴影锥体（Shadow Volume）</strong></span></div>
+    <div class="pipe"><b>Step 2</b><span>沿光源穿过轮廓边的方向向远处延伸，构建<strong>阴影锥体（Shadow Volume）</strong></span></div>
     <div class="pipe"><b>Step 3</b><span><strong>Stencil Buffer 计数法</strong>：从视点向像素画线，穿过阴影体正面 +1，穿过背面 −1</span></div>
     <div class="pipe"><b>Step 4</b><span>最终计数 > 0 → 像素在阴影中；计数 = 0 → 被光照亮</span></div>
   </div>
@@ -470,7 +470,7 @@ summary:hover{background:var(--soft)}
       <h3>任务级并行（Task-level Parallelism）</h3>
       <p style="margin-bottom:6px"><span class="label">核心</span> 对同一数据流的<strong>不同阶段并发执行</strong></p>
       <p style="margin-bottom:6px"><span class="label green">例</span> 渲染管线分多个阶段，每阶段独立运行</p>
-      <p><span class="label green">实现</span> 顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧</p>
+      <p><span class="label green">实现</span> 顶点处理、光栅化、片段处理等阶段对数据流中的不同批次并发工作</p>
     </div>
   </div>
 
@@ -603,10 +603,10 @@ summary:hover{background:var(--soft)}
   <p>动画师指定<strong>关键时刻（Keyframes）</strong>的物体状态（位置/旋转/缩放/颜色/光照），计算机通过<strong>插值</strong>（线性或样条如 Bezier、Catmull-Rom）自动生成中间帧（In-betweens）。</p>
 
   <p class="mini-title">Procedural Animation（过程动画）</p>
-  <p>由<strong>算法/物理规则/模拟</strong>自动生成运动。典型应用：粒子系统（烟雾、火焰）、刚体动力学（碰撞响应）、群体行为（鸟群 Boids、人群模拟）。</p>
+  <p>由<strong>算法/物理规则/模拟</strong>自动生成运动。讲义例子包括粒子系统、刚体动力学和柔体/可变形物体动力学。</p>
 
   <p class="mini-title">Motion Capture（动作捕捉）</p>
-  <p>用传感器/摄像头记录真实运动者的<strong>3D 运动数据</strong>，映射到虚拟角色上。典型应用：电影特效（如 Gollum）、体育游戏（FIFA）、格斗游戏。</p>
+  <p>用传感器/摄像头记录真实运动者的<strong>3D 运动数据</strong>，映射到虚拟角色上；核心优势是真实自然，主要代价是设备和后处理成本。</p>
 
   <p class="mini-title">三种动画方式完整对比（闭卷必背表）</p>
 
@@ -679,7 +679,7 @@ summary:hover{background:var(--soft)}
     <p>② <strong>光栅化器</strong>（固定功能）：负责裁剪（Clipping）、顶点→片段转换、逐顶点属性插值（颜色/纹理坐标/法向量）</p>
     <p>③ <strong>片段着色器</strong>（可编程）：负责深度测试（Z-test）、逐像素颜色计算（Phong Shading）、纹理采样</p>
     <p>④ <strong>数据级并行</strong>：对不同数据执行相同操作——10,000 个三角形同时分配给 10,000 个核心并行处理</p>
-    <p>⑤ <strong>任务级并行</strong>：流水线模式——顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧</p>
+    <p>⑤ <strong>任务级并行</strong>：流水线模式——顶点处理、光栅化、片段处理等阶段对数据流中的不同批次并发工作</p>
     <p>⑥ <strong>Efficient communication</strong>：减少 CPU-GPU 数据传输和同步，让数据留在 GPU 管线内连续处理。</p>
   </div>
 
@@ -742,7 +742,7 @@ summary:hover{background:var(--soft)}
         </tbody>
       </table>
       <p><strong>数据级并行：</strong>对不同数据执行相同操作——10,000 个三角形同时分配给 10,000 个核心并行处理。</p>
-      <p><strong>任务级并行：</strong>流水线模式——顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧。</p>
+      <p><strong>任务级并行：</strong>流水线模式——顶点处理、光栅化、片段处理等阶段对数据流中的不同批次并发工作。</p>
       <div class="warn">⚠️ Gouraud Shading 在顶点着色器，Phong Shading 在片段着色器——不要搞混！</div>
     </div>
   </details>
@@ -844,7 +844,7 @@ summary:hover{background:var(--soft)}
         <li>光栅化器：裁剪、<strong>插值</strong>（固定功能，不可编程）</li>
         <li>片段着色器：Z-test、<strong>Phong Shading</strong>（逐像素光照）、纹理采样</li>
         <li>数据级并行 = 同一操作不同数据（三角形独立）</li>
-        <li>任务级并行 = 流水线（各阶段同时处理不同帧）</li>
+        <li>任务级并行 = 流水线（各阶段同时处理数据流中的不同批次）</li>
         <li>Efficient communication = 减少 CPU-GPU 传输、同步和中间结果读回</li>
         <li>Keyframe = 艺术家主导；Procedural = 算法主导；MoCap = 数据驱动</li>
         <li>Selective Refinement 的挑战：T-junction 和 Crack</li>

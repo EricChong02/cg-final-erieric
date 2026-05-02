@@ -157,12 +157,12 @@ summary:hover{background:var(--soft)}
 
   <p>考试中 M07 相关题目约占 <strong>~43%</strong>（约 2–3 道题）。核心考察点：</p>
   <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
-    <li><strong>Phong 公式三分量</strong>：能闭卷写出 $I_a = k_a I_c$、$I_d = k_d I_L \max(0, \mathbf{N}\cdot\mathbf{L})$、$I_s = k_s I_L \max(0, \mathbf{V}\cdot\mathbf{R})^n$</li>
-    <li><strong>反射向量公式</strong>：$\mathbf{R} = 2(\mathbf{N}\cdot\mathbf{L})\mathbf{N} - \mathbf{L}$（必须背下来）</li>
+    <li><strong>Phong 公式三分量</strong>：能闭卷写出 <span class="math-inline">I<sub>a</sub> = k<sub>a</sub>I<sub>c</sub></span>、<span class="math-inline">I<sub>d</sub> = k<sub>d</sub>I<sub>L</sub> max(0, <span class="math-vector">N</span>&middot;<span class="math-vector">L</span>)</span>、<span class="math-inline">I<sub>s</sub> = k<sub>s</sub>I<sub>L</sub> max(0, <span class="math-vector">V</span>&middot;<span class="math-vector">R</span>)<sup>n</sup></span></li>
+    <li><strong>反射向量公式</strong>：<span class="math-inline"><span class="math-vector">R</span> = 2(<span class="math-vector">N</span>&middot;<span class="math-vector">L</span>)<span class="math-vector">N</span> - <span class="math-vector">L</span></span>（必须背下来）</li>
     <li><strong>漫反射与视点无关 / 镜面反射与视点有关</strong>：这是必考的区分点</li>
     <li><strong>平行光源 vs 点光源</strong>：平行光源同一平面各点入射角相同；点光源不同</li>
     <li><strong>Gouraud vs Phong</strong>：Gouraud 插值颜色 → 高光丢失；Phong 插值法向量 → 高光正确</li>
-    <li><strong>$n$ 的作用</strong>：高光指数越大，高光越集中越尖锐</li>
+    <li><strong><span class="math-inline">n</span> 的作用</strong>：高光指数越大，高光越集中越尖锐</li>
   </ul>
 
   <div class="warn">
@@ -239,7 +239,7 @@ I = k<sub>a</sub> · I<sub>c</sub>  +  k<sub>d</sub> · I<sub>L</sub> · max(0, 
 
   <div class="formula">
 <strong>多光源扩展公式：</strong><br>
-I = k<sub>a</sub> I<sub>c</sub> + Σ<sub>i=1</sub><sup>N</sup> [ k<sub>d</sub> I<sub>L<sub>i</sub></sub> max(0, <strong>N</strong>·<strong>L</strong><sub>i</sub>) + k<sub>s</sub> I<sub>L<sub>i</sub></sub> max(0, <strong>V</strong>·<strong>R</strong><sub>i</sub>)<sup>n</sup> ]
+I = k<sub>a</sub> I<sub>c</sub> + Σ<sub>i=1</sub><sup>N</sup> [ k<sub>d</sub> I<sub>L,i</sub> max(0, <strong>N</strong>·<strong>L</strong><sub>i</sub>) + k<sub>s</sub> I<sub>L,i</sub> max(0, <strong>V</strong>·<strong>R</strong><sub>i</sub>)<sup>n</sup> ]
   </div>
 
   <div class="grid-3">
@@ -466,7 +466,7 @@ n：镜面反射指数（Specular Exponent），控制高光大小<br>
     </div>
     <div class="pipe">
       <b>Step 3</b>
-      <span>在多边形内部用<strong>双线性插值</strong>（沿扫描线）得到像素颜色</span>
+      <span>在多边形内部用<strong>线性插值</strong>得到像素颜色</span>
     </div>
   </div>
 
@@ -514,7 +514,7 @@ n：镜面反射指数（Specular Exponent），控制高光大小<br>
     </div>
     <div class="pipe">
       <b>Step 2</b>
-      <span>在多边形内部<strong>双线性插值法向量</strong>：n<sub>pixel</sub> = normalize(lerp(n<sub>left</sub>, n<sub>right</sub>, t))</span>
+      <span>在三角形内部用<strong>线性插值 / 重心坐标</strong>插值法向量，并归一化</span>
     </div>
     <div class="pipe">
       <b>Step 3</b>
@@ -529,7 +529,7 @@ n：镜面反射指数（Specular Exponent），控制高光大小<br>
   <div class="answer-box">
     ✅ <strong>Q7b 标准答案框架：</strong><br><br>
     ① Phong Shading <strong>不插值颜色</strong>，而是插值<strong>法向量（Normal Vector）</strong><br>
-    ② 在三角形内部每个像素处，对顶点法向量做双线性插值并归一化，得到每像素法向量<br>
+    ② 在三角形内部每个像素处，对顶点法向量做线性插值 / 重心坐标插值并归一化，得到每像素法向量<br>
     ③ 对<strong>每个像素</strong>独立重新计算完整的 Phong Illumination Model<br>
     ④ 无论高光峰值落在哪里（内部或顶点），都能被精确捕获，不依赖多边形密度<br>
     ⑤ 代价：每像素都要执行完整 Phong 公式 → 计算开销远高于 Gouraud
@@ -637,7 +637,7 @@ n：镜面反射指数（Specular Exponent），控制高光大小<br>
     <p><strong>适用题型：</strong>"How does Phong shading address the highlight problem in Gouraud shading?"</p>
     <p style="margin-top:12px"><strong>答题框架（考场直接写）：</strong></p>
     <p>① <strong>核心差异</strong>：Phong Shading 不插值<strong>颜色</strong>，而是插值<strong>法向量（Normal Vector）</strong>。</p>
-    <p>② <strong>流程</strong>：每个顶点取相邻面法向量的加权平均得顶点法向量 → 在三角形内部对顶点法向量做双线性插值（需归一化）→ 用插值法向量在每个像素独立执行完整 Phong 光照计算。</p>
+    <p>② <strong>流程</strong>：每个顶点取相邻面法向量的加权平均得顶点法向量 → 在三角形内部对顶点法向量做线性插值 / 重心坐标插值（需归一化）→ 用插值法向量在每个像素独立执行完整 Phong 光照计算。</p>
     <p>③ <strong>解决高光的原因</strong>：高光峰值无论落在三角形的哪个位置，该像素处的法向量都能正确指向高光方向 → Phong 公式在该像素计算出正确的 I<sub>s</sub> → 高光被精确捕捉。</p>
     <p>④ <strong>代价</strong>：每像素都要执行光照计算 → 计算开销远高于 Gouraud。</p>
     <p style="margin-top:8px"><strong>一句话对比：</strong>Gouraud 插颜色；Phong 插法向量，逐像素算颜色。</p>
@@ -748,7 +748,7 @@ n：镜面反射指数（Specular Exponent），控制高光大小<br>
       <p>由于 Specular Highlight 是<strong>非线性</strong>效果（I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (V·R)<sup>n</sup>），当 n 较大时高光极度集中，高光峰值往往落在三角形内部而非顶点处。从暗色顶点做线性插值 → 内部仍暗 → 高光消失。</p>
 
       <p style="margin-top:12px"><strong>(b) Phong Shading 如何解决此问题？</strong></p>
-      <p>Phong Shading 不插值颜色，而是插值<strong>法向量</strong>。在三角形内部每个像素处对顶点法向量做双线性插值并归一化，然后对每个像素独立重新计算完整 Phong 光照。无论高光峰值落在哪里，都能被精确捕获。</p>
+      <p>Phong Shading 不插值颜色，而是插值<strong>法向量</strong>。在三角形内部每个像素处对顶点法向量做线性插值 / 重心坐标插值并归一化，然后对每个像素独立重新计算完整 Phong 光照。无论高光峰值落在哪里，都能被精确捕获。</p>
       <p><strong>代价：</strong>每像素都要执行完整 Phong 公式，计算开销远高于 Gouraud。</p>
     </div>
   </details>

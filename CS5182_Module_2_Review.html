@@ -132,6 +132,7 @@ details[open] summary::before { content: "▾ "; }
   <nav class="nav-group">
     <span class="nav-label">页面导航</span>
     <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#2d-drawing">2D Drawing</a>
     <a class="nav-link" href="#3d-representations">8 种 3D 表示方法全览</a>
     <a class="nav-link" href="#polygon-mesh">多边形网格深入</a>
     <a class="nav-link" href="#parametric-vs-polygon">参数曲面 vs 多边形网格</a>
@@ -150,10 +151,10 @@ details[open] summary::before { content: "▾ "; }
 <header class="hero">
   <div class="kicker">MODULE 2 · CS5182 Final Sprint</div>
   <h2>三维物体建模</h2>
-  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计：覆盖 8 种 3D 表示方法、Euler 公式验证、参数曲面与多边形网格的对比选择。</p>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计：覆盖 2D line/circle drawing、8 种 3D 表示方法、Euler 公式验证、参数曲面与多边形网格的对比选择。</p>
   <div class="hero-grid">
+    <div class="hero-stat"><b>2D</b><span>Line / Circle</span></div>
     <div class="hero-stat"><b>8</b><span>3D 表示方法</span></div>
-    <div class="hero-stat"><b>2</b><span>高频考法</span></div>
     <div class="hero-stat"><b>1</b><span>Euler 公式计算</span></div>
     <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
   </div>
@@ -172,11 +173,11 @@ details[open] summary::before { content: "▾ "; }
     </article>
     <article class="concept-card">
       <h3>本章产出</h3>
-      <p>能说出 8 种 3D 表示方法的定义和适用场景；能比较任意两种方法的优劣；能用 Euler 公式验证多面体；能写出考场用的比较题答案框架。</p>
+      <p>能按讲义口径说明 line/circle drawing 的像素选择思想；能说出 8 种 3D 表示方法的定义和适用场景；能用 Euler 公式验证多面体；能写出比较题答案框架。</p>
     </article>
     <article class="concept-card">
       <h3>高频考法</h3>
-      <p>① 比较两种表示方法的适用场景（Q4 原型变形）；② Euler 公式 $V-E+F=2$ 验证与广义公式计算；③ 解释参数曲面需 Tessellation 才能光栅化。</p>
+      <p>① 比较两种表示方法的适用场景（Q4 原型变形）；② Euler 公式 <span class="math-inline">V - E + F = 2</span> 验证与广义公式计算；③ 解释参数曲面需 Tessellation 才能光栅化；④ line/circle drawing 的像素近似思想。</p>
     </article>
   </div>
   <div class="bridge-note">
@@ -206,6 +207,7 @@ details[open] summary::before { content: "▾ "; }
       <tr><th>知识点</th><th>重要程度</th><th>典型题型</th><th>备考策略</th></tr>
     </thead>
     <tbody>
+      <tr><td>2D Drawing：thin line / circle</td><td>🟡 中</td><td>简答/算法步骤题</td><td>按讲义说清"选择最接近真实几何的像素"，记住 Bresenham 使用整数运算与圆的对称性</td></tr>
       <tr><td>8 种 3D 表示方法定义与场景</td><td>🟡 中</td><td>简答/匹配题</td><td>记住每种一句话定义 + 一个典型场景</td></tr>
       <tr><td>Euler 公式验证与广义公式</td><td>🟠 较高</td><td>计算题</td><td>手算 V, E, F，注意亏格 g 的情况</td></tr>
       <tr><td>参数曲面 vs 多边形网格对比</td><td>🔴 最高</td><td>比较题（Q4 变形）</td><td>重点：Tessellation 是进入光栅化的必要条件</td></tr>
@@ -215,7 +217,50 @@ details[open] summary::before { content: "▾ "; }
   </table>
 
   <div class="warn">
-    <strong>⚠️ 范围提醒：</strong>Revision 明确排除的扩展专题不纳入本模块；M02 只复习 3D 表示方法、Euler 公式、可定向性和表示方式对比。
+    <strong>⚠️ 范围提醒：</strong>Revision 明确排除的扩展专题不纳入本模块；M02 复习 Object Modeling 讲义中列出的 2D Drawing 基础、3D 表示方法、Euler 公式、可定向性和表示方式对比。
+  </div>
+</section>
+
+<!-- ════════════ Section 1: 2D Drawing ════════════ -->
+<section class="section" id="2d-drawing">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>2D Drawing：Thin Line 与 Circle</h2>
+        <p class="lead">Revision 明确列出的 Object Modeling 起点：把连续几何转换为 frame buffer 中的像素模式</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 基础算法步骤</span>
+  </div>
+
+  <div class="note">
+    <strong>📌 讲义原话口径：</strong>Drawing an object means converting the object into a pixel pattern and updating the corresponding pixels in the frame buffer. Thin line 和 circle 的共同目标都是选择最接近真实几何的像素。
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Thin Line</h3>
+      <p>直线由两点定义，基础方程是 <span class="math-inline">y = mx + c</span>。讲义先讨论 <span class="math-inline">0 &le; m &le; 1</span> 的情况：每次令 <span class="math-inline">x</span> 增加 1，再比较真实直线位置到上方/下方像素中心的距离，选择更近的像素。</p>
+      <p style="margin-top:8px;"><span class="label green">Bresenham</span> 核心优势是只用整数运算；其他斜率可通过交换 x/y 或改变符号利用对称性处理。</p>
+    </div>
+    <div class="card">
+      <h3>Circle</h3>
+      <p>圆由 <span class="math-inline">(x - x<sub>c</sub>)<sup>2</sup> + (y - y<sub>c</sub>)<sup>2</sup> = r<sup>2</sup></span> 定义。算法目标是在像素网格中选择使 <span class="math-inline">|(x - x<sub>c</sub>)<sup>2</sup> + (y - y<sub>c</sub>)<sup>2</sup> - r<sup>2</sup>|</span> 最小的像素。</p>
+      <p style="margin-top:8px;"><span class="label green">Symmetry</span> 圆具有 8 对称性，只需计算一个八分区，其余点通过对称复制；Bresenham circle 同样用整数决策变量提高效率。</p>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>对象</th><th>讲义关键词</th><th>考场回答重点</th></tr></thead>
+    <tbody>
+      <tr><td>Thin line</td><td><span class="math-inline">y = mx + c</span>；upper/lower pixel center；Bresenham line</td><td>逐步选择更接近真实直线的像素；Bresenham 用整数运算；利用对称性覆盖其他斜率</td></tr>
+      <tr><td>Circle</td><td>circle equation；closest pixel；symmetry；Bresenham circle</td><td>用圆方程残差判断像素接近程度；利用 8 对称性减少计算</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <strong>⚠️ 答题边界：</strong>Revision 只点名 a line 和 a circle。闭卷时优先写"连续几何 → pixel pattern"和"选择最接近真实几何的像素"，不需要背整段 C 代码。
   </div>
 </section>
 
@@ -223,7 +268,7 @@ details[open] summary::before { content: "▾ "; }
 <section class="section" id="3d-representations">
   <div class="section-head">
     <div class="section-title">
-      <div class="badge-num">1</div>
+      <div class="badge-num">2</div>
       <div>
         <h2>8 种 3D 表示方法全览</h2>
         <p class="lead">一张表建立全局认知，知道每种表示"是什么 + 适合什么场景 + 考试要求多深"</p>
@@ -239,7 +284,7 @@ details[open] summary::before { content: "▾ "; }
     <tbody>
       <tr>
         <td>Point Cloud</td>
-        <td>一组无结构的 3D 点样本 $(x,y,z)$，可带颜色/法向量</td>
+        <td>一组无结构的 3D 点样本 <span class="math-inline">(x, y, z)</span>，可带颜色/法向量</td>
         <td>LiDAR 扫描、自动驾驶环境重建</td>
         <td>无拓扑连接，难以直接渲染</td>
         <td>三性质 + 与 Mesh 对比</td>
@@ -260,14 +305,14 @@ details[open] summary::before { content: "▾ "; }
       </tr>
       <tr>
         <td>Implicit Surface</td>
-        <td>由 $f(x,y,z)=0$ 定义的曲面</td>
+        <td>由 <span class="math-inline">f(x, y, z) = 0</span> 定义的曲面</td>
         <td>碰撞检测、物理仿真、SDF</td>
         <td>需 Marching Cubes 才能可视化</td>
         <td>与参数曲面的区别</td>
       </tr>
       <tr>
         <td>Parametric Surface</td>
-        <td>由 $\mathbf{P}(s,t)=(x,y,z)$ 参数方程描述的曲面</td>
+        <td>由 <span class="math-inline"><span class="math-vector">P</span>(s, t) = (x, y, z)</span> 参数方程描述的曲面</td>
         <td>CAD/CAM、工业制造、精密仿真</td>
         <td><strong>必须 Tessellation</strong> 才能光栅化</td>
         <td>Q4 比较题核心</td>
@@ -305,7 +350,7 @@ details[open] summary::before { content: "▾ "; }
 <section class="section" id="polygon-mesh">
   <div class="section-head">
     <div class="section-title">
-      <div class="badge-num">2</div>
+      <div class="badge-num">3</div>
       <div>
         <h2>多边形网格深入</h2>
         <p class="lead">数据结构、法向量定向、Euler 公式、可定向性 — M02 中最重要的考点集中地</p>
@@ -361,7 +406,7 @@ details[open] summary::before { content: "▾ "; }
   </table>
 
   <div class="warn">
-    <strong>⚠️ 陷阱：</strong>Euler 公式 $V-E+F=2$ 只对<strong>凸多面体（无洞的封闭流形）</strong>成立！有洞/把手 (亏格 g ≥ 1) 时用广义公式 $V-E+F = 2-2g$。例如：甜甜圈 (torus) 的 $g=1$，$V-E+F=0$。
+    <strong>⚠️ 陷阱：</strong>Euler 公式 <span class="math-inline">V - E + F = 2</span> 只对<strong>凸多面体（无洞的封闭流形）</strong>成立！有洞/把手 (亏格 g ≥ 1) 时用广义公式 <span class="math-inline">V - E + F = 2 - 2g</span>。例如：甜甜圈 (torus) 的 <span class="math-inline">g = 1</span>，<span class="math-inline">V - E + F = 0</span>。
   </div>
 
   <h3 class="mini-title">可定向 vs 不可定向</h3>
@@ -389,7 +434,7 @@ details[open] summary::before { content: "▾ "; }
 <section class="section" id="parametric-vs-polygon">
   <div class="section-head">
     <div class="section-title">
-      <div class="badge-num">3</div>
+      <div class="badge-num">4</div>
       <div>
         <h2>参数曲面 vs 多边形网格</h2>
         <p class="lead">M02 最核心的对比 — 期中 Q4 原型，期末变形题高概率出现</p>
@@ -441,7 +486,7 @@ details[open] summary::before { content: "▾ "; }
 <section class="section" id="point-cloud">
   <div class="section-head">
     <div class="section-title">
-      <div class="badge-num">4</div>
+      <div class="badge-num">5</div>
       <div>
         <h2>Point Cloud 三性质</h2>
         <p class="lead">来自 Tutorial 的精确表述，答题时可直接引用</p>
@@ -494,7 +539,7 @@ details[open] summary::before { content: "▾ "; }
 <section class="section" id="other-reps">
   <div class="section-head">
     <div class="section-title">
-      <div class="badge-num">5</div>
+      <div class="badge-num">6</div>
       <div>
         <h2>其余表示方法速查</h2>
         <p class="lead">细分曲面、隐式曲面、Voxel、CSG、Fractals — 考试只需一句话定义</p>
@@ -512,8 +557,8 @@ details[open] summary::before { content: "▾ "; }
     </div>
     <div class="card">
       <h3>Implicit Surface</h3>
-      <p>由隐函数 $f(x,y,z)=0$ 定义。$f>0$ 表示外部，$f<0$ 表示内部。SDF 是其特例。</p>
-      <p style="margin-top:6px;"><span class="label purple">代表</span> $x^2+y^2+z^2-r^2=0$（球面）</p>
+      <p>由隐函数 <span class="math-inline">f(x, y, z) = 0</span> 定义；<span class="math-inline">f</span> 的正负可用于 inside/outside test，但符号方向取决于约定。按本课 SDF 讲义：inside 为 <span class="math-inline">+d(x)</span>，outside 为 <span class="math-inline">-d(x)</span>，表面为 <span class="math-inline">f=0</span>。</p>
+      <p style="margin-top:6px;"><span class="label purple">代表</span> <span class="math-inline">x<sup>2</sup> + y<sup>2</sup> + z<sup>2</sup> - r<sup>2</sup> = 0</span>（球面）</p>
       <p><span class="label green">优点</span> 碰撞检测/内外判断 O(1)</p>
       <p><span class="label red">缺点</span> 可视化需 Marching Cubes</p>
     </div>
@@ -538,7 +583,7 @@ details[open] summary::before { content: "▾ "; }
   </div>
 </section>
 
-<!-- ════════════ Section 6: 考场答案模板 ════════════ -->
+<!-- ════════════ Section 7: 考场答案模板 ════════════ -->
 <section class="section" id="templates">
   <div class="section-head">
     <div class="section-title">
@@ -550,7 +595,17 @@ details[open] summary::before { content: "▾ "; }
     </div>
   </div>
 
-  <div class="mini-title">模板 1：比较两种 3D 表示方法的适用场景（Q4 原型变形）</div>
+  <div class="mini-title">模板 1：2D Drawing 的 line / circle 像素选择思想</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"Explain how to draw a thin line / circle on a pixel grid"</p>
+    <hr style="border-color:#a7f3d0; margin:12px 0;">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>总定义：</strong>2D drawing converts continuous geometry into a pixel pattern and updates the corresponding pixels in the frame buffer.</p>
+    <p>② <strong>Thin line：</strong>用 <span class="math-inline">y = mx + c</span> 表示直线；对 <span class="math-inline">0 &le; m &le; 1</span>，每次 x 增加 1，比较真实线段到上/下像素中心的距离，选择更近的像素；Bresenham line 用整数决策变量实现。</p>
+    <p>③ <strong>Circle：</strong>用 <span class="math-inline">(x - x<sub>c</sub>)<sup>2</sup> + (y - y<sub>c</sub>)<sup>2</sup> = r<sup>2</sup></span> 表示圆；选择使圆方程残差最小的像素；利用圆的 8 对称性减少计算。</p>
+  </div>
+
+  <div class="mini-title">模板 2：比较两种 3D 表示方法的适用场景（Q4 原型变形）</div>
   <div class="answer-box">
     <p><strong>适用题型：</strong>"Compare Polygon Mesh and Parametric Surfaces for scenario X vs scenario Y"</p>
     <hr style="border-color:#a7f3d0; margin:12px 0;">
@@ -574,55 +629,64 @@ details[open] summary::before { content: "▾ "; }
     <p style="margin-top:8px;"><strong>答题套路：</strong>"先选 XXX 因为..." → "另一种的缺点是..." → "对 Rasterization 阶段的影响是..."</p>
   </div>
 
-  <div class="mini-title">模板 2：Euler 公式验证与广义公式计算</div>
+  <div class="mini-title">模板 3：Euler 公式验证与广义公式计算</div>
   <div class="answer-box">
     <p><strong>适用题型：</strong>"验证某多面体满足 Euler 公式"或"给定 V, E 和亏格 g，求 F"</p>
     <hr style="border-color:#a7f3d0; margin:12px 0;">
     <p><strong>答案框架：</strong></p>
-    <p>① <strong>写出公式：</strong>$V - E + F = 2$（凸多面体无洞）或 $V - E + F = 2 - 2g$（亏格 g）</p>
+    <p>① <strong>写出公式：</strong><span class="math-inline">V - E + F = 2</span>（凸多面体无洞）或 <span class="math-inline">V - E + F = 2 - 2g</span>（亏格 g）</p>
     <p>② <strong>代入数值计算：</strong>逐项写出代入过程</p>
     <p>③ <strong>验证/求解：</strong>确认等式成立，或解出未知量</p>
     <p style="margin-top:8px;"><strong>常见多面体数据备忘：</strong>四面体 (4,6,4)、正方体 (8,12,6)、八面体 (6,12,8)、二十面体 (12,30,20)、十二面体 (20,30,12)</p>
   </div>
 
-  <div class="mini-title">模板 3：Point Cloud 三性质简答题</div>
+  <div class="mini-title">模板 4：Point Cloud 三性质简答题</div>
   <div class="answer-box">
     <p><strong>适用题型：</strong>"点云有哪些关键性质？为什么点云难以直接渲染？"</p>
     <hr style="border-color:#a7f3d0; margin:12px 0;">
     <p><strong>答案框架：</strong></p>
     <p>① 说明三个性质：<strong>Unstructured</strong>（无规则拓扑）、<strong>Sampled from 2D manifolds</strong>（从物体表面采样）、<strong>No topology between points</strong>（点间无连接关系）</p>
     <p>② 解释为何难以直接渲染：因为没有边/面信息，无法直接输入光栅化管线</p>
-    <p>③ 对比 Polygon Mesh：Mesh 有完整的 $(V,E,F)$ 拓扑，可直接光栅化</p>
+    <p>③ 对比 Polygon Mesh：Mesh 有完整的 <span class="math-inline">(V, E, F)</span> 拓扑，可直接光栅化</p>
   </div>
 </section>
 
-<!-- ════════════ Section 7: 自测题 ════════════ -->
+<!-- ════════════ Section 8: 自测题 ════════════ -->
 <section class="section" id="quiz">
   <div class="section-head">
     <div class="section-title">
       <div class="badge-num" >?</div>
       <div>
         <h2>自测题</h2>
-        <p class="lead">覆盖 P2-1、P2-2 及 Q4 变形 — 闭卷自测，点击展开答案</p>
+        <p class="lead">覆盖 2D Drawing、P2-1、P2-2 及 Q4 变形 — 闭卷自测，点击展开答案</p>
       </div>
     </div>
   </div>
 
   <details>
+    <summary>Q0. Revision 中的 2D Drawing: a line, a circle 应该按什么口径复习？</summary>
+    <div class="detail-body">
+      <p><strong>总口径：</strong>Drawing an object = converting the object into a pixel pattern and updating the corresponding pixels in the frame buffer.</p>
+      <p><strong>Thin line：</strong>用 <span class="math-inline">y = mx + c</span> 表示线段；在 <span class="math-inline">0 &le; m &le; 1</span> 时逐步增加 x，比较真实直线到上/下像素中心的距离，选择更近像素。Bresenham line 的要点是用整数运算高效完成这个决策；其他斜率靠交换 x/y 或变号利用对称性处理。</p>
+      <p><strong>Circle：</strong>用 <span class="math-inline">(x - x<sub>c</sub>)<sup>2</sup> + (y - y<sub>c</sub>)<sup>2</sup> = r<sup>2</sup></span>；每步选择使圆方程残差最小的像素；利用圆的 8 对称性减少计算。</p>
+    </div>
+  </details>
+
+  <details>
     <summary>Q1. (P2-1a) 验证正八面体满足 Euler 公式 V − E + F = 2</summary>
     <div class="detail-body">
       <p>正八面体：<strong>V = 6</strong>（上下各一个顶点，中间四个），<strong>E = 12</strong>，<strong>F = 8</strong></p>
-      <p>$V - E + F = 6 - 12 + 8 = \mathbf{2}$ ✓</p>
+      <p><span class="math-inline">V - E + F = 6 - 12 + 8 = <strong>2</strong></span> ✓</p>
     </div>
   </details>
 
   <details>
     <summary>Q2. (P2-1b) 亏格 g=1 的闭合网格有 V=9000, E=27000，求面数 F</summary>
     <div class="detail-body">
-      <p>广义 Euler 公式：$V - E + F = 2 - 2g$</p>
-      <p>$g = 1 \Rightarrow V - E + F = 2 - 2(1) = 0$</p>
-      <p>$9000 - 27000 + F = 0$</p>
-      <p>$F = 18000$</p>
+      <p>广义 Euler 公式：<span class="math-inline">V - E + F = 2 - 2g</span></p>
+      <p><span class="math-inline">g = 1 &Rightarrow; V - E + F = 2 - 2(1) = 0</span></p>
+      <p><span class="math-inline">9000 - 27000 + F = 0</span></p>
+      <p><span class="math-inline">F = 18000</span></p>
     </div>
   </details>
 
@@ -675,10 +739,10 @@ details[open] summary::before { content: "▾ "; }
       <table>
         <thead><tr><th>对比点</th><th>参数曲面</th><th>隐式曲面</th></tr></thead>
         <tbody>
-          <tr><td>定义方式</td><td>$\mathbf{P}(s,t) = (x(s,t), y(s,t), z(s,t))$</td><td>$f(x,y,z) = 0$</td></tr>
-          <tr><td>内外判断</td><td>不直接（需额外计算）</td><td>✅ 直接：$f>0$ 外，$f<0$ 内</td></tr>
-          <tr><td>采样生成点</td><td>✅ 直接：代入 (s,t) 得 (x,y,z)</td><td>不直接（需 Ray Marching / Marching Cubes）</td></tr>
-          <tr><td>碰撞检测</td><td>复杂</td><td>✅ O(1)：直接计算 $f(x,y,z)$ 符号</td></tr>
+          <tr><td>定义方式</td><td><span class="math-inline"><span class="math-vector">P</span>(s, t) = (x(s, t), y(s, t), z(s, t))</span></td><td><span class="math-inline">f(x, y, z) = 0</span></td></tr>
+          <tr><td>内外判断</td><td>不直接（需额外计算）</td><td>✅ 直接：计算 <span class="math-inline">f(x,y,z)</span> 的符号；本课 SDF 约定 <span class="math-inline">+</span> 为 inside、<span class="math-inline">-</span> 为 outside</td></tr>
+          <tr><td>采样生成点</td><td>✅ 直接：代入 (s,t) 得 (x,y,z)</td><td>不直接（讲义强调可视化需 Marching Cubes）</td></tr>
+          <tr><td>碰撞检测</td><td>复杂</td><td>✅ O(1)：直接计算 <span class="math-inline">f(x, y, z)</span> 符号</td></tr>
           <tr><td>典型应用</td><td>CAD 曲面设计</td><td>SDF、物理仿真、碰撞检测</td></tr>
         </tbody>
       </table>
@@ -694,7 +758,7 @@ details[open] summary::before { content: "▾ "; }
   </details>
 </section>
 
-<!-- ════════════ Section 8: 最后速记 ════════════ -->
+<!-- ════════════ Section 9: 最后速记 ════════════ -->
 <section class="section" id="final-recall">
   <div class="section-head">
     <div class="section-title">
@@ -710,10 +774,13 @@ details[open] summary::before { content: "▾ "; }
     <div>
       <p class="mini-title">必背公式/定义</p>
       <ul class="checklist">
-        <li>$V - E + F = 2$（凸多面体）</li>
-        <li>$V - E + F = 2 - 2g - b$（广义，亏格 g，边界 b）</li>
+        <li>2D Drawing = 连续几何 → pixel pattern → 更新 frame buffer</li>
+        <li>Thin line：比较真实线到上/下像素中心距离；Bresenham 用整数运算</li>
+        <li>Circle：用圆方程残差选最近像素；利用 8 对称性</li>
+        <li><span class="math-inline">V - E + F = 2</span>（凸多面体）</li>
+        <li><span class="math-inline">V - E + F = 2 - 2g - b</span>（广义，亏格 g，边界 b）</li>
         <li>四面体 (4,6,4)、正方体 (8,12,6)、八面体 (6,12,8)</li>
-        <li>参数曲面 = $\mathbf{P}(s,t)$；隐式曲面 = $f(x,y,z)=0$</li>
+        <li>参数曲面 = <span class="math-inline"><span class="math-vector">P</span>(s, t)</span>；隐式曲面 = <span class="math-inline">f(x, y, z) = 0</span></li>
         <li>CCW 顶点排列 → 法向量朝外（右手定则）</li>
         <li>Face-Vertex：顶点表 + 面索引表</li>
         <li>Catmull-Clark = 细分曲面代表算法</li>
@@ -724,6 +791,7 @@ details[open] summary::before { content: "▾ "; }
       <ul class="checklist">
         <li>Euler 公式只对<strong>凸多面体</strong>成立，有洞用广义公式</li>
         <li>参数曲面<strong>必须先 Tessellation</strong> 才能光栅化</li>
+        <li>2D Drawing 不背代码，背"最近像素 + 对称性/整数运算"的讲义表述</li>
         <li>Point Cloud 三性质：Unstructured / 2D manifolds / No topology</li>
         <li>隐式曲面可视化需要 Marching Cubes</li>
         <li>Q4 变形题套路：选 Mesh 给实时场景，选 Parametric 给精度场景</li>
