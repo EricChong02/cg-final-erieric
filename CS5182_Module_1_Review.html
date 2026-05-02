@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M01 · 渲染管线总览</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #667085;
+  --soft: #eef4ff; --blue: #155EEF; --blue2: #003C88;
+  --red: #D7422A; --green: #16803C; --orange: #E86A00; --purple: #6941C6;
+  --border: #d9e2ef; --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08); --radius: 18px; --sidebar: 292px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.72;color:var(--ink);background:radial-gradient(circle at top right,rgba(21,94,239,.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f5f7fb 45%,#f7f8fb 100%);min-height:100vh}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:20px 0;max-width:700px}
+.pipe{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(16,24,40,.04);position:relative}
+.pipe b{font-size:14px;font-weight:800;color:var(--blue2);white-space:nowrap;min-width:100px}
+.pipe span{font-size:13px;color:var(--muted)}
+.pipe::after{content:"↓";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:14px;color:var(--border);font-weight:700;z-index:1}
+.pipe:last-child::after{display:none}
+
+/* grid */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.card{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05)}
+.card h3{font-size:15px;font-weight:800;color:var(--blue2);margin-bottom:8px}
+.card p,.card li{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{border:1px solid var(--border2);padding:10px 14px;text-align:left}
+th{background:var(--soft);font-weight:700;color:var(--blue2);font-size:13px}
+td{color:var(--ink);font-size:13px}
+
+/* mini-title */
+.mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+
+/* details */
+details{margin:12px 0;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+summary{padding:14px 18px;font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,255,255,.93);color:var(--ink)}
+summary:hover{background:var(--soft)}
+.detail-body{padding:16px 18px;border-top:1px solid var(--border2);font-size:14px;background:rgba(255,255,255,.7)}
+
+/* quick / final-recall */
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.quick .mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:8px;border:none}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:6px 0;font-size:13px;color:var(--ink);padding-left:20px;position:relative}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+
+/* footer */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border2);color:var(--muted);font-size:13px}
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M01 渲染管线总览</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#pipeline-stages">渲染管线的完整阶段</a>
+    <a class="nav-link" href="#coordinate-systems">坐标系变换链</a>
+    <a class="nav-link" href="#why-order">管线顺序设计逻辑</a>
+    <a class="nav-link" href="#rendering-paradigms">三大渲染范式对比</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 1 · CS5182 Final Sprint</div>
+  <h2>渲染管线总览</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计，覆盖光栅化渲染管线的完整阶段顺序、坐标系变换链、以及三种渲染范式的对比。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>4</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>4+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>0</b><span>计算题</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>建立对光栅化渲染管线全局结构的理解——管线有哪些阶段、每个阶段做什么、为什么要按这个顺序排列。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p>无。这是整个课程的第一个模块，所有概念从零开始建立。</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能默写 Revision 原图管线顺序及每阶段的坐标系；能解释 Back-face Removal 为何放在 Clipping 之前。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>管线阶段排序题（Q8 变形）；坐标系判断题；顺序优劣分析题；渲染范式对比题。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong>（无前置模块）→ <strong>M01 渲染管线总览</strong> → <a href="CS5182_Module_2_Review.html">M02 三维物体建模</a>
+  </div>
+</section>
+
+<!-- #roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M01 是理解后续所有模块的基础框架</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 预计分值 ~8%</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>本模块在考试中的定位：</strong>M01 不涉及复杂计算，考试题型以<strong>理解判断</strong>和<strong>排序分析</strong>为主。典型考法是给出某个渲染阶段，要求判断它在管线的什么位置、为什么在那里、如果在其他位置会有什么问题。
+  </div>
+
+  <p>考试中 M01 相关题目约占 <strong>~8%</strong>（约 1 道题）。核心考察点：</p>
+  <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>管线阶段顺序</strong>：能按正确顺序写出 8 个阶段及各阶段所在的坐标系</li>
+    <li><strong>顺序的设计理由</strong>：Back-face Removal 在 Clipping 之前 → 约 50% 背面被淘汰，减少 Clipping 工作量</li>
+    <li><strong>透视变换的位置</strong>：在 Clipping 之前 → 裁剪平面变为轴对齐，裁剪简化为 2D 坐标比较</li>
+    <li><strong>三大渲染范式区别</strong>：光栅化 (Geometry-first) vs 光线追踪 (Pixel-first) vs 实时渲染（光栅化基础 + 优化）</li>
+  </ul>
+
+  <div class="warn">
+    ⚠️ <strong>期中 Q8 已考过</strong> Back-face Removal 顺序优势。期末可能以相似逻辑考查其他阶段的顺序理由，或与 GPU 可编程管线结合出题。
+  </div>
+</section>
+
+<!-- #pipeline-stages -->
+<section class="section" id="pipeline-stages">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>渲染管线的完整阶段</h2>
+        <p class="lead">光栅化渲染管线的 8 个阶段，按执行顺序</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考：默写管线顺序</span>
+  </div>
+
+  <div class="note">
+    📌 光栅化渲染管线是将 3D 场景逐阶段转换为屏幕上 2D 像素图像的有序处理流程。每个阶段对应一次坐标系或数据形式的变换。
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>1. Object Modeling</b>
+      <span>定义物体几何形状 · <span class="label">Local Space</span></span>
+    </div>
+    <div class="pipe">
+      <b>2. World Transform</b>
+      <span>将各物体变换到统一世界坐标系 · <span class="label">Local → World</span></span>
+    </div>
+    <div class="pipe">
+      <b>3. Perspective Transform</b>
+      <span>以 COP 为中心透视压缩，视锥体变长方体，保留 z · <span class="label">World → View</span></span>
+    </div>
+    <div class="pipe">
+      <b>4. Back-face Removal</b>
+      <span>本页约定 n<sub>z</sub> > 0 → 背面，剔除约 50% 的面 · <span class="label">View Space</span></span>
+    </div>
+    <div class="pipe">
+      <b>5. Clipping</b>
+      <span>裁剪视野外几何，6 平面已平行坐标轴 · <span class="label">View Space</span></span>
+    </div>
+    <div class="pipe">
+      <b>6. Rasterization</b>
+      <span>图元 → 覆盖的像素集合 · <span class="label">Screen Space</span></span>
+    </div>
+    <div class="pipe">
+      <b>7. Hidden Surface Removal</b>
+      <span>Z-buffer 逐像素深度比较 · <span class="label">Screen Space</span></span>
+    </div>
+    <div class="pipe">
+      <b>8. Shading</b>
+      <span>Phong 光照模型计算每像素颜色 · <span class="label">Screen Space</span></span>
+    </div>
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试容易混淆的点：</strong>透视<strong>变换</strong>（第 3 步，保留 z' = z）与透视<strong>投影</strong>（z' = d）不同。管线中用到的是透视变换（保留深度给后续 Back-face / Clipping / Z-buffer 使用），而不是透视投影（会丢失深度）。
+  </div>
+
+  <div class="note">
+    <strong>按 Revision 原图默写：</strong>Input object models → World coordinate transformation → Perspective transformation → Back-face removal → Clipping → Rasterization → Shading → Output image。下方把 Rasterization 后的 image-space visibility（Z-buffer / Painter's）展开出来，是为了连接 M05 的隐藏面消除考点；若题目要求复述 Revision pipeline，按原图顺序写。
+  </div>
+
+  <p style="margin-top:20px"><strong>各阶段在 GPU 可编程管线中的执行位置（M09 关联）：</strong></p>
+  <table>
+    <thead><tr><th>渲染阶段</th><th>GPU 处理器</th><th>可编程？</th></tr></thead>
+    <tbody>
+      <tr><td>World Transform + Back-face Removal</td><td><strong>Vertex Shader</strong>（顶点着色器）</td><td>✅</td></tr>
+      <tr><td>Clipping + 插值</td><td><strong>Rasterizer</strong>（光栅化器）</td><td>❌ 固定功能</td></tr>
+      <tr><td>Z-buffer + Shading + 纹理</td><td><strong>Fragment Shader</strong>（片段着色器）</td><td>✅</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- #coordinate-systems -->
+<section class="section" id="coordinate-systems">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>坐标系变换链</h2>
+        <p class="lead">Object → World → View → Screen — 四跳坐标变换</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 考试可能要求标注各阶段坐标系</span>
+  </div>
+
+  <p>从模型定义到屏幕像素，3D 数据经过四次坐标系变换：</p>
+
+  <table>
+    <thead>
+      <tr><th>变换</th><th>从</th><th>到</th><th>操作</th><th>管线阶段</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Modeling Transform</td><td><strong>Object/Local Space</strong></td><td><strong>World Space</strong></td><td>平移、旋转、缩放，建立物体间相对位置</td><td>第 1 → 2 步</td></tr>
+      <tr><td>View Transform</td><td><strong>World Space</strong></td><td><strong>View/Camera Space</strong></td><td>透视变换：视锥体 → 长方体，保留 z</td><td>第 2 → 3 步</td></tr>
+      <tr><td>Projection</td><td><strong>View Space</strong></td><td><strong>Screen/NDC Space</strong></td><td>将长方体映射到规范设备坐标（NDC）：x,y ∈ [-1,1]</td><td>第 5 → 6 步</td></tr>
+      <tr><td>Viewport Transform</td><td><strong>NDC Space</strong></td><td><strong>Pixel Coordinates</strong></td><td>映射到实际屏幕像素坐标</td><td>Rasterization 内部</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    📌 <strong>记忆技巧：</strong>Object → World → View → Screen 四个空间，管线从第 1 到第 6 步依次完成这些变换。第 7–8 步都在 Screen Space 中执行。
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>Object Space</h3>
+      <p>每个物体有自己的局部坐标系。球体中心在原点、立方体中心在原点，互不知道对方位置。</p>
+    </div>
+    <div class="card">
+      <h3>World Space</h3>
+      <p>所有物体共享一个全局坐标系。球在 (0,0,0)，立方体在 (2,1,0)，它们的相对位置关系被建立。</p>
+    </div>
+    <div class="card">
+      <h3>View / Camera Space</h3>
+      <p>以相机（COP）为中心的坐标系。透视变换在此空间将视锥体变为长方体，保留 z 深度。</p>
+    </div>
+  </div>
+</section>
+
+<!-- #why-order -->
+<section class="section" id="why-order">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>管线顺序的设计逻辑</h2>
+        <p class="lead">为什么 Back-face 先于 Clipping 先于 Rasterization？</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 高频考点：Q8 变形</span>
+  </div>
+
+  <p>渲染管线的阶段顺序不是随意排列的，每个"前置"都有计算效率的考量——核心原则是<strong>越早淘汰不可见几何，后续阶段工作量越少</strong>。</p>
+
+  <table>
+    <thead>
+      <tr><th>顺序安排</th><th>效率理由</th><th>如果反过来会怎样</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Back-face Removal 在 Clipping 之前</strong></td>
+        <td>提前剔除约 50% 背面，减少 Clipping 需处理的面数</td>
+        <td>对大量最终不可见的背面浪费 Clipping 计算</td>
+      </tr>
+      <tr>
+        <td><strong>Perspective Transformation 在 Clipping 之前</strong></td>
+        <td>变换后 6 个裁剪平面变为平行于坐标轴的平面（x=±A, y=±B, z=d, z=C），裁剪退化为简单的坐标范围比较</td>
+        <td>需对任意方向的裁剪平面执行复杂的 3D 裁剪</td>
+      </tr>
+      <tr>
+        <td><strong>Clipping 在 Rasterization 之前</strong></td>
+        <td>不对不可见的几何体做光栅化</td>
+        <td>浪费光栅化资源处理视野外的几何体</td>
+      </tr>
+      <tr>
+        <td><strong>Hidden Surface Removal 在 Shading 之前</strong></td>
+        <td>只对可见像素计算光照，避免对被遮挡像素执行昂贵的 Phong 公式</td>
+        <td>对最终不可见的像素浪费着色计算</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="answer-box">
+    ✅ <strong>Q8 标准答案框架（考场可直接套用）：</strong><br><br>
+    <strong>① 计算优势：</strong>对不透明物体约 50% 的面背向摄像机。在 Clipping 和 Rasterization 之前剔除这些面，避免了昂贵的裁剪计算和光栅化开销，大幅降低管线后续所有阶段的工作量。<br><br>
+    <strong>② 若移到 Rasterization 之后：</strong>最终图像不会有差别（Z-buffer 最终也会丢弃被遮挡的片段），但极其低效——浪费了大量 GPU 资源在最终不可见的几何体上。<br><br>
+    <strong>③ 设计哲学：</strong>从粗到细逐步筛选——Back-face Removal → Clipping → Rasterization → Z-buffer，越早剔除越高效。
+  </div>
+</section>
+
+<!-- #rendering-paradigms -->
+<section class="section" id="rendering-paradigms">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>三大渲染范式对比</h2>
+        <p class="lead">光栅化 vs 光线追踪 vs 实时渲染</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 理解型比较题</span>
+  </div>
+
+  <div class="note">
+    📌 这三种范式代表了不同的设计哲学：<strong>Geometry-first</strong>（光栅化，从三角形出发找像素）vs <strong>Pixel-first</strong>（光线追踪，从像素出发找几何）vs <strong>在光栅化基础上的优化</strong>（实时渲染）。
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>维度</th><th>Rasterization（光栅化）</th><th>Ray Tracing（光线追踪）</th><th>Real-time Rendering（实时渲染）</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>出发点</strong></td>
+        <td>Geometry-first：逐三角形 → 像素</td>
+        <td>Pixel-first：逐像素 → 光线 → 场景</td>
+        <td>基于光栅化 + 优化技术</td>
+      </tr>
+      <tr>
+        <td><strong>核心操作</strong></td>
+        <td>三角形覆盖哪些像素？</td>
+        <td>这个像素看到什么？</td>
+        <td>如何在高帧率下保持可接受的画质？</td>
+      </tr>
+      <tr>
+        <td><strong>速度</strong></td>
+        <td>✅ 极快（GPU 并行优化）</td>
+        <td>❌ 很慢（大量求交计算）</td>
+        <td>✅ 实时（通常 ≥30fps）</td>
+      </tr>
+      <tr>
+        <td><strong>阴影</strong></td>
+        <td>需额外算法（Shadow Map / Shadow Volume）</td>
+        <td>✅ Shadow Ray 自然处理</td>
+        <td>Shadow Map 为主</td>
+      </tr>
+      <tr>
+        <td><strong>反射/折射</strong></td>
+        <td>❌ 难以精确处理</td>
+        <td>✅ 递归追踪自然处理</td>
+        <td>近似（Screen Space Reflection 等）</td>
+      </tr>
+      <tr>
+        <td><strong>全局光照</strong></td>
+        <td>近似 / 需额外处理</td>
+        <td>镜面反射精确，间接漫反射需 Radiosity</td>
+        <td>预计算 + 近似</td>
+      </tr>
+      <tr>
+        <td><strong>适用场景</strong></td>
+        <td>游戏、实时交互、CAD 预览</td>
+        <td>电影特效、建筑可视化、离线渲染</td>
+        <td>3A 游戏、VR/AR、交互应用</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>范围提醒：</strong>Revision 明确排除的 Tutorial 扩展专题不需要复习；本页只保留三种会考渲染范式的比较。
+  </div>
+
+  <div class="grid-2" style="margin-top:16px">
+    <div class="card">
+      <h3>Object Space vs Image Space 算法</h3>
+      <p>考试可能要求区分这两种算法类型：</p>
+      <ul style="margin:8px 0 0 18px;font-size:13px;color:var(--muted);line-height:1.8">
+        <li><strong>Object Space</strong>：在光栅化前处理 3D 几何体 → Back-face Culling</li>
+        <li><strong>Image Space</strong>：在光栅化后处理像素 → Z-buffer、Painter's</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>考试常见陷阱</h3>
+      <ul style="margin:8px 0 0 18px;font-size:13px;color:var(--muted);line-height:1.8">
+        <li>把透视<strong>投影</strong>和透视<strong>变换</strong>搞混（前者丢 z，后者保留 z）</li>
+        <li>认为 Back-face Removal 在 Clipping <strong>之后</strong></li>
+        <li>认为管线阶段可以任意调换顺序</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- #templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div><h2>考场答案模板</h2></div>
+    </div>
+  </div>
+
+  <div class="mini-title">题型 1：解释 Back-face Removal 为何在 Clipping 之前执行（Q8 型）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>基本事实：</strong>对不透明物体，约 50% 的面背向摄像机。Back-face Removal 可在 O(n) 时间内剔除它们。</p>
+    <p>② <strong>计算优势：</strong>提前剔除 50% 的面 → Clipping 阶段处理的几何量减半 → 显著降低后续所有阶段的计算量。</p>
+    <p>③ <strong>如果反过来：</strong>若 Clipping 先执行，需对所有面（含 50% 最终不可见的背面）执行裁剪计算，严重浪费。</p>
+    <p>④ <strong>最终图像：</strong>即使 Back-face Removal 移到 Rasterization 之后，最终图像也相同（Z-buffer 会丢弃背面），但效率极低。</p>
+  </div>
+
+  <div class="mini-title">题型 2：默写渲染管线阶段及坐标系</div>
+  <div class="answer-box">
+    <p><strong>答案框架（Revision 原图 + 展开说明）：</strong></p>
+    <p>① Input Object Models (Local Space) → ② World Coordinate Transformation (Local → World) → ③ Perspective Transformation (World → View) → ④ Back-face Removal (View) → ⑤ Clipping (View, 轴对齐) → ⑥ Rasterization (Screen) → ⑦ Shading → ⑧ Output Image。</p>
+    <p><strong>补充说明：</strong>Hidden/Back Surface Removal 是 Revision 的独立考点；其中 Z-buffer / Painter's 属于 rasterization 后的 image-space visibility 处理，答管线原图时不要把它写乱顺序。</p>
+  </div>
+
+  <div class="mini-title">题型 3：比较三种渲染范式</div>
+  <div class="answer-box">
+    <p><strong>答案框架（用出发点一句话区分）：</strong></p>
+    <p>① Rasterization：Geometry-first，逐三角形 → 像素，速度快但阴影/反射需额外算法。</p>
+    <p>② Ray Tracing：Pixel-first，逐像素 → 光线 → 场景求交，阴影/反射/折射自然处理但极慢。</p>
+    <p>③ Real-time Rendering：在光栅化基础上加入 LOD、Shadow Map 等优化，达到实时帧率。</p>
+  </div>
+</section>
+
+<!-- #quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div><h2>自测题</h2></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Q1. 透视变换（Perspective Transformation）和透视投影（Perspective Projection）的关键区别是什么？</summary>
+    <div class="detail-body">
+      <p><strong>答：</strong>透视<strong>变换</strong>保留 z 坐标不变（z' = z），将视锥体变为长方体，为后续 Back-face Removal 和 Clipping 保留深度信息。透视<strong>投影</strong>丢弃深度信息，z' = d（投影平面位置），用于最终成像。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q2. 为什么透视变换要放在裁剪之前执行？</summary>
+    <div class="detail-body">
+      <p><strong>答：</strong>透视变换前，视锥体是斜截锥体（frustum），6 个裁剪平面是任意方向的平面，裁剪计算复杂。透视变换后，视锥体变为轴对齐长方体，6 个裁剪平面变为 x=±A、y=±B、z=d、z=C（平行于坐标轴），裁剪退化为简单的坐标范围检查。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q3. Back-face Removal 和 Z-buffering 分别属于 Object Space 还是 Image Space 算法？</summary>
+    <div class="detail-body">
+      <p><strong>答：</strong>Back-face Removal = <strong>Object Space</strong>（处理 3D 几何体，在光栅化前），检查法向量 z 分量判断正/背面。Z-buffering = <strong>Image Space</strong>（处理像素/片段，在光栅化后），逐像素比较深度值。Painter's Algorithm 也是 Image Space。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q4. 如果把 Back-face Removal 从管线中完全移除，最终渲染图像会改变吗？为什么？</summary>
+    <div class="detail-body">
+      <p><strong>答：</strong>对<strong>不透明物体</strong>，最终图像<strong>不会有差别</strong>——因为 Z-buffer 在后续阶段会通过逐像素深度比较丢弃被遮挡的背面片段。但性能会严重下降：需要处理所有面（含背面）的变换、裁剪、光栅化、着色。对<strong>透明物体</strong>，可能会看到背面透过，图像可能不同。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q5. 光栅化渲染管线中，哪个阶段将数据从 3D 连续表示转换为 2D 离散像素表示？</summary>
+    <div class="detail-body">
+      <p><strong>答：Rasterization（光栅化）</strong>。它将图元（三角形、线段等）转换为屏幕像素网格中的离散片段（fragments）。这是管线中从"几何表示"到"图像表示"的关键转折点。在 GPU 管线中，光栅化器（Rasterizer）是固定功能硬件，还负责对顶点属性做插值。</p>
+    </div>
+  </details>
+</section>
+
+<!-- #final-recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div><h2>最后速记</h2></div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背：Revision 原图管线顺序</p>
+      <ul class="checklist">
+        <li>Input Object Models → World Transform → Perspective Transform → Back-face Removal → Clipping → Rasterization → Shading → Output Image</li>
+        <li>坐标变换链：Local → World → View → Screen</li>
+        <li>透视变换保留 z（z'=z），透视投影丢弃 z（z'=d）</li>
+        <li>Back-face：透视变换后用法向量 z 分量判断正/背面</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>三大范式：Geometry-first (光栅化) vs Pixel-first (光线追踪) vs 光栅化优化 (实时)</li>
+        <li>Object Space：Back-face Culling；Image Space：Z-buffer, Painter's</li>
+        <li>Back-face 在 Clipping 之前 → 提前淘汰 50% 面 → 减少 Clipping 工作量</li>
+        <li>Revision 明确排除的扩展专题 → 不纳入模块复习时间</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · M01 渲染管线总览 · Semester B 2025/26
+</footer>
+
+</div><!-- .content -->
+</main>
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M05 · 隐藏面消除</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --paper: #ffffff;
+  --ink: #172033;
+  --muted: #667085;
+  --soft: #eef4ff;
+  --blue: #155EEF;
+  --blue2: #003C88;
+  --red: #D7422A;
+  --green: #16803C;
+  --orange: #E86A00;
+  --purple: #6941C6;
+  --border: #d9e2ef;
+  --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08);
+  --radius: 18px;
+  --sidebar: 292px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 15px; line-height: 1.72; color: var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(21,94,239,.12), transparent 34%),
+    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 45%, #f7f8fb 100%);
+  min-height: 100vh;
+}
+
+/* ── pipeline ── */
+.pipeline { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 20px 0; }
+.pipe {
+  background: var(--soft); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 24px; text-align: center; width: 100%; max-width: 560px;
+}
+.pipe b { color: var(--blue2); font-size: 14px; display: block; margin-bottom: 2px; }
+.pipe span { font-size: 13px; color: var(--muted); }
+.pipe-arrow { font-size: 20px; color: var(--blue); font-weight: 900; padding: 4px 0; }
+
+/* ── grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0; }
+.card {
+  background: var(--soft); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 20px;
+}
+.card h3 { font-size: 15px; font-weight: 800; color: var(--blue2); margin-bottom: 8px; }
+.card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* ── mini-title ── */
+.mini-title {
+  font-size: 13px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--blue); margin: 24px 0 12px;
+}
+
+/* ── tables ── */
+table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; }
+thead th {
+  background: var(--soft); font-weight: 800; color: var(--blue2);
+  padding: 12px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  font-size: 13px;
+}
+tbody td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border2);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+
+/* ── quick / final-recall ── */
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.checklist { list-style: none; padding: 0; }
+.checklist li {
+  position: relative; padding-left: 24px; margin-bottom: 8px;
+  font-size: 14px; line-height: 1.6;
+}
+.checklist li::before {
+  content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 900;
+}
+
+/* ── details (quiz) ── */
+details {
+  border: 1px solid var(--border2); border-radius: 12px; padding: 0; margin-bottom: 10px;
+  overflow: hidden;
+}
+summary {
+  padding: 14px 20px; font-weight: 700; font-size: 14px; cursor: pointer;
+  background: var(--soft); list-style: none;
+}
+summary::-webkit-details-marker { display: none; }
+details[open] summary { border-bottom: 1px solid var(--border2); }
+.detail-body { padding: 18px 20px; font-size: 14px; line-height: 1.7; }
+.detail-body table { margin: 12px 0; }
+
+/* ── footer ── */
+.footer {
+  text-align: center; padding: 32px 24px; border-top: 1px solid var(--border2);
+  color: var(--muted); font-size: 13px; margin-top: 20px;
+}
+.footer strong { color: var(--ink); }
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}</style>
+</head>
+<body>
+
+
+<!-- shell -->
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M05 · 隐藏面消除</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#space-classification">物体空间 vs 图像空间</a>
+    <a class="nav-link" href="#backface">Back-face Culling</a>
+    <a class="nav-link" href="#painter">Painter's Algorithm</a>
+    <a class="nav-link" href="#zbuffer">Z-buffering</a>
+    <a class="nav-link" href="#comparison">三种方法完整对比</a>
+    <a class="nav-link" href="#pipeline-order">管线执行顺序逻辑</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 5 · CS5182 Final Sprint</div>
+  <h2>隐藏面消除</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计——不讲废话，只讲考场能直接写出来的定义、对比表和答案框架。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>3</b><span>核心算法</span></div>
+    <div class="hero-stat"><b>4+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>2</b><span>答案模板</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>表格对比优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry:start -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>在光栅化之后，解决"哪些表面可见、哪些被遮挡"的问题。是整个管线中最后一个决定"画什么"的阶段，直接影响最终图像正确性。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p><strong>M04 投影与裁剪</strong>：透视变换保留 z 坐标是背面消除简化的前提；裁剪后的几何体才是隐藏面消除的输入。</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能默写 Back-face Culling / Painter's / Z-buffer 三种算法的原理、优缺点和完整对比表；能解释管线中 Back-face Removal 的执行顺序优势。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>① 三种算法完整对比表（期中考过变形，期末仍可能出）；② Painter's 循环重叠失效（Q5）；③ Back-face culling 管线顺序优势（Q8）。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong>M04 投影与裁剪 → <strong>M05 隐藏面消除</strong> → M06 走样与反走样
+  </div>
+</section>
+<!-- module-entry:end -->
+
+<!-- Section 0: Roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">隐藏面消除在管线中的位置、三种算法的分类逻辑、考试出题规律</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 考试定位说明</span>
+  </div>
+
+  <p>隐藏面消除（Hidden Surface Removal，HSR）是光栅化渲染管线中<strong>第 7 阶段</strong>（在 Rasterization 之后、Shading 之前执行），目标是确定每个像素最终显示哪个表面的颜色。</p>
+
+  <div class="pipeline">
+    <div class="pipe"><b>Rasterization（光栅化）</b><span>Screen Space · 三角形 → 像素片段</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe" style="border: 2px solid var(--blue);"><b>Hidden Surface Removal（隐藏面消除）</b><span>Screen Space · 逐像素深度比较 / 提前剔除</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe"><b>Shading（着色）</b><span>Screen Space · Phong 光照每像素颜色</span></div>
+  </div>
+
+  <div class="note">
+    <strong>管线设计要点：</strong>HSR 在 Shading 之前执行，确保只对<strong>可见像素</strong>计算光照，节省大量着色计算。如果顺序反过来，会对大量被遮挡的像素白白做 Phong 计算。
+  </div>
+
+  <p style="margin-top:20px;"><strong>考试定位：</strong></p>
+  <table>
+    <thead><tr><th>题型</th><th>典型问法</th><th>分值预期</th></tr></thead>
+    <tbody>
+      <tr><td>对比题</td><td>比较 Back-face Culling / Painter's / Z-buffer 三种方法</td><td>6–8 分</td></tr>
+      <tr><td>分析题</td><td>Painter's Algorithm 的失效场景（循环重叠）</td><td>6 分（期中 Q5 类）</td></tr>
+      <tr><td>管线顺序题</td><td>为何 Back-face Removal 在 Clipping 之前？</td><td>10 分（期中 Q8 类）</td></tr>
+      <tr><td>流程描述题</td><td>描述 Z-buffer 算法的完整步骤</td><td>6–8 分</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <strong>考试重点：</strong>期中 Q5 考了 Painter's 失效，Q8 考了管线顺序优势——期末不会原题重复，但<strong>三种方法的完整对比表格</strong>和<strong>Z-buffer 流程描述</strong>仍是期末高频候选。Painter's 唯一相对优势（透明物体 Alpha Blending）容易被忽略，务必记住。
+  </div>
+</section>
+
+<!-- Section 1: Object Space vs Image Space -->
+<section class="section" id="space-classification">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>物体空间 vs 图像空间算法</h2>
+        <p class="lead">两种算法范式的本质区别——在 3D 几何层面处理 vs 在 2D 像素层面处理</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 分类题必考</span>
+  </div>
+
+  <p>隐藏面消除算法可以按<strong>工作时机和处理对象</strong>分为两大类：</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>物体空间 (Object Space)</th><th>图像空间 (Image Space)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>工作时机</strong></td><td>在 3D 物体被转换为像素<strong>之前</strong></td><td>在物体被转换为像素<strong>过程中 / 之后</strong></td></tr>
+      <tr><td><strong>处理对象</strong></td><td>3D 几何体本身（顶点、面）</td><td>2D 像素 / 片段（fragments）</td></tr>
+      <tr><td><strong>示例</strong></td><td><strong>Back-face Culling</strong>：判断 3D 法向量与视线的关系</td><td><strong>Z-buffering</strong> / <strong>Painter's Algorithm</strong></td></tr>
+      <tr><td><strong>精度</strong></td><td>可能有误差（如凹多面体）</td><td>像素级精确</td></tr>
+      <tr><td><strong>典型局限</strong></td><td>无法处理面间相互遮挡</td><td>需要额外存储（Z-buffer）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>一句话记忆：</strong>Object Space = 「在 3D 世界里判断」，Image Space = 「在 2D 屏幕上判断」。考试中要求对三种方法分类：Back-face Culling 是 Object Space；Painter's 和 Z-buffer 是 Image Space。
+  </div>
+</section>
+
+<!-- Section 2: Back-face Culling -->
+<section class="section" id="backface">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>Back-face Culling（背面消除）</h2>
+        <p class="lead">通过法向量判断多边形朝向，在光栅化前剔除约 50% 的背面</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 管线顺序 + 局限性</span>
+  </div>
+
+  <p><strong>定义：</strong>背面消除通过检测多边形法向量与观察方向的关系，判断并剔除朝向远离观察者一侧的多边形，属于<strong>物体空间（Object Space）</strong>算法。</p>
+
+  <p style="margin-top:16px;"><strong>算法步骤：</strong></p>
+  <div class="formula">对每个多边形面 f：
+  1. 计算面法向量 n = (v₁-v₀) × (v₂-v₀)（右手定则，CCW 为正面）
+  2. 计算视线向量 (p - v)，其中 p 是面上任意一点，v 是视点
+
+  3. 若 n · (p - v) >= 0 → 背面（不可见），剔除
+     若 n · (p - v) &lt;  0 → 正面（可见），保留
+
+透视变换后的简化（Back-face Removal 在透视变换后执行）：
+  投影变为平行投影，视线方向变为 (0, 0, 1)
+  → 只需检查法向量 z 分量（本页约定）：
+    若 nz > 0 → 背面（剔除）
+    若 nz &lt; 0 → 正面（保留）</div>
+
+  <div class="note">
+    <strong>透视变换后的简化是高频考点：</strong>透视变换将投影变为平行投影，视线方向统一为 (0,0,1)，Back-face 判断简化为只需检查法向量的 <strong>z 分量正负</strong>。这也是"透视变换要在 Back-face Removal 之前"的原因。
+  </div>
+
+  <div class="warn">
+    <strong>符号约定不要死背：</strong>本页沿用课程整理中的约定：透视变换后 n<sub>z</sub> &gt; 0 判为背面。若题目明确采用相反视线方向，正负号会互换；考试真正要写清的是<strong>透视变换后用法向量 z 分量判断正/背面</strong>。
+  </div>
+
+  <p style="margin-top:20px;"><strong>优缺点：</strong></p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>优点</h3>
+      <p>• 实现简单，复杂度 <strong>O(n)</strong><br>• 提前剔除约 <strong>50%</strong> 的面，大幅减少后续阶段工作量<br>• 透视变换后可简化为 nz 正负判断</p>
+    </div>
+    <div class="card">
+      <h3>缺点</h3>
+      <p>• <strong>仅对凸多面体（Convex Polyhedra）正确</strong><br>• 凹多面体中背面可能部分可见 → 错误剔除<br>• 不能解决面间相互遮挡问题（需要 Z-buffer 等补充）</p>
+    </div>
+  </div>
+
+  <div class="exam">
+    <strong>常见错误理解：</strong>"Back-face Culling 可以解决所有隐藏面问题"——错误！它<strong>不能</strong>处理凸多面体之间的相互遮挡。例如两个立方体前后排列，后方立方体的正面仍会通过 Back-face Culling，但它被前方立方体遮挡，需要 Z-buffer 最终判断。
+  </div>
+
+  <div class="warn">
+    <strong>考试陷阱——凹多面体：</strong>凹多面体中，部分"背面"（法向量指向远离观察者一侧的面）可能从凹入的开口处被看见。如果强行剔除，会产生<strong>渲染空洞（holes）</strong>。这是"Back-face Culling 的缺点"的标准答案。
+  </div>
+</section>
+
+<!-- Section 3: Painter's Algorithm -->
+<section class="section" id="painter">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>Painter's Algorithm（画家算法 / 深度排序）</h2>
+        <p class="lead">模仿画家"先画远处再画近处"——简单但有致命缺陷</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 循环重叠是超高频考点</span>
+  </div>
+
+  <p><strong>定义：</strong>画家算法是模仿画家"先画远处再画近处"的<strong>图像空间</strong>算法，将场景中所有面按深度从远到近排序，依次绘制到帧缓冲区，后绘制的覆盖先绘制的。</p>
+
+  <p style="margin-top:16px;"><strong>算法步骤：</strong></p>
+  <div class="formula">1. 将所有多边形按到视点的距离（深度 z）从大到小排序
+2. 依次从最远的多边形开始，按顺序渲染到帧缓冲区
+3. 后绘制的多边形覆盖（override）先绘制的重叠部分
+4. 最终帧缓冲区为最终图像</div>
+
+  <p style="margin-top:20px;"><strong>优缺点：</strong></p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>优点</h3>
+      <p>• 思路简单直观<br>• 少量物体时高效<br>• <strong>天然支持透明度叠加</strong>（Alpha Blending，由远到近叠加）<br>• 无需额外缓冲区</p>
+    </div>
+    <div class="card">
+      <h3>缺点</h3>
+      <p>• <strong>循环重叠（Cyclic Overlap）无法排序</strong><br>• <strong>相互穿插（Intersecting Polygons）无法处理</strong><br>• 物体增多时排序开销 O(n log n)<br>• 绘制顺序固定，不利于并行</p>
+    </div>
+  </div>
+
+  <div class="exam">
+    <strong>Painter's Algorithm 的两大死穴（期中 Q5 考过）：</strong><br><br>
+    <strong>① 循环重叠（Cyclic Overlap）：</strong>A 遮挡 B 的一部分，B 遮挡 C 的一部分，C 又遮挡 A 的一部分 → 无法建立全局一致的深度排序，算法失效。<br><br>
+    <strong>② 相互穿插（Intersecting Polygons）：</strong>两个多边形相互穿插（如十字交叉的面），一个面的前半部分在另一个面前面、后半部分在后面，无法给整个面分配单一的深度值，无法排序。<br><br>
+    <strong>解决方案：</strong>使用 Z-buffering——逐像素比较深度，与绘制顺序无关。
+  </div>
+
+  <div class="note">
+    <strong>Painter's 的相对优势（容易被忽略的考点）：</strong>Z-buffer 处理透明物体困难（需要 Order-Independent Transparency 技术），而 Painter's 天然支持——由远到近依次绘制，逐层叠加 alpha。这是 Painter's Algorithm <strong>唯一胜过 Z-buffer 的维度</strong>。
+  </div>
+</section>
+
+<!-- Section 4: Z-buffering -->
+<section class="section" id="zbuffer">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>Z-buffering（深度缓冲）</h2>
+        <p class="lead">现代 GPU 的核心可见性算法——逐像素比较，与绘制顺序无关</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 流程描述题高频</span>
+  </div>
+
+  <p><strong>定义：</strong>Z-buffer 算法维护一个与帧缓冲区同分辨率的深度缓冲区（z-buffer），逐像素记录当前最小深度值，从而正确处理任意复杂场景中的可见性。属于<strong>图像空间（Image Space）</strong>算法。</p>
+
+  <p style="margin-top:20px;"><strong>完整算法流程：</strong></p>
+  <div class="formula">初始化：
+  - 帧缓冲区（Frame Buffer）→ 全部设为背景色
+  - 深度缓冲区（Z-Buffer）→ 全部设为最大深度值（如 +∞ 或背裁剪平面深度）
+
+对每个多边形（顺序无关）：
+  对多边形覆盖的每个像素 (x, y)：
+    计算该像素处多边形的深度值 z_new
+
+    若 z_new &lt; z_buffer[x][y]：（更靠近观察者）
+      更新 frame_buffer[x][y] = 该多边形颜色
+      更新 z_buffer[x][y] = z_new
+    否则：忽略（该像素处已有更近的物体）</div>
+
+  <div class="note">
+    <strong>核心优势——Order-Independent：</strong>Z-buffer 的绘制顺序<strong>无关</strong>，因为每个像素独立记录最近深度。无论先画近处还是远处物体，最终结果相同。这彻底解决了 Painter's 的循环重叠问题。
+  </div>
+
+  <p style="margin-top:20px;"><strong>优缺点：</strong></p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>优点</h3>
+      <p>• 解决<strong>循环重叠</strong>和<strong>相互穿插</strong>问题<br>• 处理<strong>顺序无关</strong>，可并行<br>• GPU 硬件标配<br>• 复杂度 O(n × m)，n=多边形数，m=像素数<br>• <strong>当前主流图形加速器实现的方法</strong></p>
+    </div>
+    <div class="card">
+      <h3>缺点</h3>
+      <p>• 需要额外的<strong>深度缓冲区</strong>存储<br>• 深度值精度有限（<strong>z-fighting</strong> 问题）<br>• <strong>透明物体</strong>需要特殊处理（OIT 技术）<br>• 每帧需要清空 z-buffer</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    <strong>z-fighting 问题：</strong>当两个表面深度值非常接近时，有限的深度缓冲精度可能导致两个面交替出现在同一像素上，产生闪烁的伪影。解决方案：提高 z-buffer 位深度（如 24-bit → 32-bit）、调整近/远裁剪平面距离。
+  </div>
+
+  <div class="answer-box">
+    <strong>Z-buffer 是"当前主流图形加速器实现"的方法——这是讲义原话，必须记住。</strong>几乎所有现代 GPU 都在硬件层面集成了 Z-buffer（深度测试单元），结合 Early-Z / Hi-Z 等优化技术进行深度剔除。
+  </div>
+</section>
+
+<!-- Section 5: Complete Comparison -->
+<section class="section" id="comparison">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>三种方法完整对比表格</h2>
+        <p class="lead">闭卷必须能默写的核心表格——覆盖所有考试对比维度</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 考前必背表格</span>
+  </div>
+
+  <p>以下表格是 M05 的<strong>核心考试产出</strong>——闭卷必须能写出这张表：</p>
+
+  <table>
+    <thead>
+      <tr><th>对比维度</th><th>Back-face Culling</th><th>Painter's Algorithm</th><th>Z-buffering</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>原理</strong></td>
+        <td>法向量 n · (p-v) ≥ 0 → 背面，剔除</td>
+        <td>由远到近排序，逐层覆盖绘制</td>
+        <td>逐像素比较深度，保留最近表面</td>
+      </tr>
+      <tr>
+        <td><strong>空间类型</strong></td>
+        <td><span class="label">Object Space</span></td>
+        <td><span class="label purple">Image Space</span></td>
+        <td><span class="label purple">Image Space</span></td>
+      </tr>
+      <tr>
+        <td><strong>算法复杂度</strong></td>
+        <td>O(n)</td>
+        <td>O(n log n) + O(n × m)</td>
+        <td>O(n × m)</td>
+      </tr>
+      <tr>
+        <td><strong>额外存储</strong></td>
+        <td><span class="label green">无</span></td>
+        <td><span class="label green">无</span></td>
+        <td><span class="label orange">需要 Z-Buffer</span></td>
+      </tr>
+      <tr>
+        <td><strong>循环重叠</strong></td>
+        <td>不处理</td>
+        <td><span class="label red">❌ 失败</span></td>
+        <td><span class="label green">✅ 正确</span></td>
+      </tr>
+      <tr>
+        <td><strong>相互穿插</strong></td>
+        <td>不处理</td>
+        <td><span class="label red">❌ 失败</span></td>
+        <td><span class="label green">✅ 正确</span></td>
+      </tr>
+      <tr>
+        <td><strong>凹多面体</strong></td>
+        <td><span class="label red">❌ 失败</span></td>
+        <td><span class="label green">✅ 可以</span></td>
+        <td><span class="label green">✅ 正确</span></td>
+      </tr>
+      <tr>
+        <td><strong>透明物体</strong></td>
+        <td><span class="label">不适用</span></td>
+        <td><span class="label green">✅ 天然支持</span></td>
+        <td><span class="label orange">困难（需 OIT）</span></td>
+      </tr>
+      <tr>
+        <td><strong>并行性</strong></td>
+        <td>强（面间独立）</td>
+        <td>弱（排序是串行的）</td>
+        <td><span class="label green">强（像素间独立）</span></td>
+      </tr>
+      <tr>
+        <td><strong>适用范围</strong></td>
+        <td>凸多面体背面快速剔除</td>
+        <td>少量不相交物体 / 透明渲染</td>
+        <td><span class="label green">通用，GPU 首选</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="answer-box">
+    <strong>考场作答建议：</strong>遇到对比题时，先画这张表的框架（维度写在左边），再逐一填充。按"空间类型 → 复杂度 → 存储 → 循环重叠 → 穿插 → 凹多面体 → 透明 → 并行 → 适用"的固定顺序写，确保不遗漏任何维度。
+  </div>
+</section>
+
+<!-- Section 6: Pipeline Order -->
+<section class="section" id="pipeline-order">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>管线执行顺序逻辑</h2>
+        <p class="lead">Back-face Removal 为何在 Clipping 之前？——Q8 标准答法</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 管线顺序题高频</span>
+  </div>
+
+  <p><strong>标准渲染管线顺序（相关阶段）：</strong></p>
+  <div class="pipeline">
+    <div class="pipe"><b>Perspective Transformation</b><span>View Space · z 保留，frustum → box</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe" style="border: 2px solid var(--blue);"><b>Back-face Removal</b><span>View Space · 透视变换后简化为 nz 正负判断</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe"><b>Clipping</b><span>View Space · 裁剪平面为轴对齐，简化为坐标比较</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe"><b>Rasterization</b><span>Screen Space · 图元 → 像素</span></div>
+    <div class="pipe-arrow">↓</div>
+    <div class="pipe"><b>Hidden Surface Removal (Z-buffer)</b><span>Screen Space · 逐像素深度比较</span></div>
+  </div>
+
+  <p style="margin-top:20px;"><strong>Q8 完整答法模板——"为何 Back-face Removal 在 Clipping 之前？"</strong></p>
+
+  <div class="answer-box">
+    <p><strong>① 效率理由（核心答案）：</strong></p>
+    <p>对于不透明物体，约有 <strong>50%</strong> 的面背向摄像机。在 Clipping 之前提前剔除这些背面：</p>
+    <p>• 避免对这些面执行昂贵的 <strong>Clipping 计算</strong>（Cohen-Sutherland / Sutherland-Hodgman）<br>
+    • 避免对这些面执行 <strong>Rasterization + Fragment Shader</strong> 计算<br>
+    • 大幅降低管线后续所有阶段的工作量（约减少一半的面处理量）</p>
+
+    <p style="margin-top:12px;"><strong>② 透视变换先行的理由：</strong></p>
+    <p>透视变换后将投影变为平行投影，视线方向统一为 (0,0,1)，Back-face 判断退化为<strong>只需检查法向量 z 分量正负</strong>——算法从一般的内积判断简化为一个坐标比较。</p>
+
+    <p style="margin-top:12px;"><strong>③ 若移到 Rasterization 之后执行？</strong></p>
+    <p>最终图像<strong>不会有差别</strong>——Z-buffer 最终也会丢弃被遮挡的片段。但<strong>极其低效</strong>：浪费了大量 GPU 资源在最终不可见的几何体上（变换、裁剪、光栅化全部白做）。</p>
+  </div>
+
+  <div class="warn">
+    <strong>管线顺序优化哲学：</strong>越早淘汰不可见几何，后续阶段的工作量越少。Back-face Removal → Clipping → Rasterization → Z-buffer 是<strong>从粗到细逐步筛选</strong>的设计：先剔除背面（粗），再裁剪视锥外（中），最后逐像素深度比较（细）。
+  </div>
+
+  <p style="margin-top:20px;"><strong>管线执行顺序的设计理由总结：</strong></p>
+  <table>
+    <thead><tr><th>顺序安排</th><th>效率理由</th></tr></thead>
+    <tbody>
+      <tr><td>Perspective Transform → Back-face Removal</td><td>变换后视线方向统一为 (0,0,1)，Back-face 判断简化为 nz 正负检查</td></tr>
+      <tr><td>Back-face Removal → Clipping</td><td>提前淘汰约 50% 背面，减少 Clipping 计算量</td></tr>
+      <tr><td>Clipping → Rasterization</td><td>不需要对不可见几何体做光栅化</td></tr>
+      <tr><td>HSR (Z-buffer) → Shading</td><td>只对可见像素计算光照，节省大量着色计算</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Section 7: Answer Templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div>
+        <h2>考场答案模板</h2>
+        <p class="lead">直接套用的答题框架——模板 02（Z-buffering）+ 模板 08（三种方法对比）</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mini-title">模板 02：Z-buffering 算法流程</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"Describe the Z-buffering algorithm" / "Z-buffer 如何解决隐藏面问题"<br>
+    <strong>分值参考：</strong>6–8 分</p>
+
+    <p style="margin-top:14px;"><strong>答案框架（5 段式）：</strong></p>
+    <p>① <strong>初始化：</strong>Frame Buffer 全部设为背景色；Z-Buffer 全部设为最大深度值（如 +∞ 或背裁剪平面深度）。</p>
+    <p>② <strong>逐多边形处理（顺序无关）：</strong>对多边形覆盖的每个像素 (x,y)，计算该像素处多边形的深度值 z_new。</p>
+    <p>③ <strong>逐像素判断：</strong>若 z_new &lt; z_buffer[x][y]（更靠近视点）→ 更新 frame_buffer[x][y]（颜色）和 z_buffer[x][y]（深度）；否则丢弃该像素。</p>
+    <p>④ <strong>优点：</strong>① 与绘制顺序无关（order-independent）；② 正确处理循环重叠（Cyclic Overlap）和相互穿插（Intersecting Polygons）；③ GPU 硬件标配。</p>
+    <p>⑤ <strong>缺点：</strong>① 需要额外深度缓冲区；② 透明物体需特殊处理；③ 深度精度有限（z-fighting）。</p>
+
+    <p style="margin-top:14px;"><strong>送分关键词：</strong>order-independent ——这是 Z-buffer 最核心的优势，也是 Painter's Algorithm 做不到的。</p>
+  </div>
+
+  <div class="mini-title" style="margin-top:28px;">模板 08：三种隐藏面消除方法对比</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"Compare Back-face culling, Painter's algorithm, and Z-buffering"<br>
+    <strong>分值参考：</strong>6–8 分</p>
+
+    <p style="margin-top:14px;"><strong>答案框架（逐维度对比）：</strong></p>
+
+    <table style="font-size:13px;">
+      <thead><tr><th>维度</th><th>Back-face Culling</th><th>Painter's Algorithm</th><th>Z-buffering</th></tr></thead>
+      <tbody>
+        <tr><td><strong>原理</strong></td><td>n·(p-v) ≥ 0 → 背面，剔除</td><td>由远到近排序，逐层覆盖绘制</td><td>逐像素比较深度，保留最近表面</td></tr>
+        <tr><td><strong>空间类型</strong></td><td>Object Space</td><td>Image Space</td><td>Image Space</td></tr>
+        <tr><td><strong>复杂度</strong></td><td>O(n)</td><td>O(n log n) + 排序</td><td>O(n × m)</td></tr>
+        <tr><td><strong>额外存储</strong></td><td>无</td><td>无</td><td>需要 Z-Buffer</td></tr>
+        <tr><td><strong>核心优点</strong></td><td>快速剔除约 50% 背面</td><td>简单，支持透明混合</td><td>解决循环重叠，GPU 标配</td></tr>
+        <tr><td><strong>核心缺点</strong></td><td>凹多面体失效</td><td>循环重叠失效；穿插失效</td><td>透明物体需特殊处理</td></tr>
+        <tr><td><strong>绘制顺序</strong></td><td>与顺序无关</td><td>依赖正确排序</td><td>与顺序无关</td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top:14px;"><strong>送分点：</strong>Painter's 的两大死穴：① Cyclic Overlap；② Intersecting Polygons。Z-buffer 全部解决。Painter's 的相对优势：透明混合。</p>
+  </div>
+</section>
+
+<!-- Section 8: Quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div>
+        <h2>自测题</h2>
+        <p class="lead">覆盖 P5-1（Z-buffer vs Painter's 完整对比）和 P5-2（Back-face Culling 凹多面体失效）</p>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Q1 (P5-1). 从算法复杂度、额外存储需求、能否处理循环重叠、能否处理透明物体四个维度，完整比较 Z-buffering 和 Painter's Algorithm。</summary>
+    <div class="detail-body">
+      <table>
+        <thead><tr><th>维度</th><th>Painter's Algorithm</th><th>Z-buffering</th></tr></thead>
+        <tbody>
+          <tr><td><strong>算法复杂度</strong></td><td>O(n log n)（深度排序）+ O(n × m)（绘制）</td><td>O(n × m)，无需排序</td></tr>
+          <tr><td><strong>额外存储</strong></td><td>无（只需帧缓冲）</td><td>需要与帧缓冲同分辨率的 Z-buffer</td></tr>
+          <tr><td><strong>循环重叠</strong></td><td>❌ 失败：无法确定绘制顺序</td><td>✅ 正确处理：逐像素比较，与顺序无关</td></tr>
+          <tr><td><strong>相互穿插</strong></td><td>❌ 失败：穿插面无法排序</td><td>✅ 正确处理</td></tr>
+          <tr><td><strong>透明物体</strong></td><td>✅ 可处理（由远到近 alpha 叠加）</td><td>❌ 困难：需要 Order-Independent Transparency</td></tr>
+          <tr><td><strong>并行性</strong></td><td>弱（排序是串行的）</td><td>强（每个像素独立比较）</td></tr>
+          <tr><td><strong>GPU 支持</strong></td><td>较少</td><td>✅ 几乎所有图形加速器标配</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;"><strong>结论：</strong>Z-buffer 是现代图形加速器的主流方法，Painter's Algorithm 仅适合少量不相交、无循环的简单场景或透明物体渲染。Painter's Algorithm 的唯一相对优势：天然支持透明物体（Alpha Blending）。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q2 (P5-2). 解释为何 Back-face Culling 对凸多面体正确工作，但对凹多面体会产生错误渲染，并举例说明。</summary>
+    <div class="detail-body">
+      <p><strong>对凸多面体正确的原因：</strong></p>
+      <p>凸多面体中，任何一个面要么<strong>完全朝向</strong>观察者（正面），要么<strong>完全背向</strong>观察者（背面）。由于是凸体，背面永远被正面遮挡，不会对最终图像有任何贡献，因此安全剔除。</p>
+
+      <p style="margin-top:12px;"><strong>对凹多面体失效的原因：</strong></p>
+      <p>凹多面体中，部分"背面"（法向量指向远离观察者一侧的面）可能<strong>从侧面或缺口处可见</strong>。</p>
+      <p>例子：一个 L 形物体从正面观察时，内侧的某些面的法向量指向远离观察者方向（按 Back-face 定义为背面），但由于物体是凹的，这些面实际上<strong>可以从凹入的开口处被看见</strong>。如果将它们剔除，就会产生渲染空洞（holes）。</p>
+
+      <p style="margin-top:12px;"><strong>解决方案：</strong>对凹多面体，Back-face Culling 之后仍需要 Z-buffer 或其他方法做最终的隐藏面消除。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q3. 在标准渲染管线中，Back-face Removal 在 Clipping 之前执行。解释这种顺序的计算优势。如果移到 Rasterization 之后执行，最终图像会有差别吗？</summary>
+    <div class="detail-body">
+      <p><strong>提前执行的计算优势：</strong>对于不透明物体，约有 50% 的面背向摄像机。在 Clipping 之前提前剔除这些面，可以：① 避免对这些面执行昂贵的 Clipping 计算；② 避免对这些面执行 Rasterization 和 Fragment Shader 计算；③ 大幅降低管线后续所有阶段的工作量（约减少一半的面处理量）。</p>
+      <p style="margin-top:8px;"><strong>若移到 Rasterization 之后：</strong>最终图像<strong>不会有差别</strong>——Z-buffer 最终也会丢弃被遮挡的片段。但极其低效：浪费了大量 GPU 资源在最终不可见的几何体上。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q4. 透视变换后 Back-face Culling 为何可以简化为仅检查 nz 的正负？</summary>
+    <div class="detail-body">
+      <p>透视变换将透视投影变为<strong>平行投影</strong>，视线方向统一为一个固定方向。因此一般的 n · (p-v) 判断退化为检查法向量 z 分量的正负。本页约定下：nz &gt; 0 → 背面（剔除）；nz &lt; 0 → 正面（保留）。如果题目给出相反视线约定，正负号随约定互换，但核心逻辑不变。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q5. Painter's Algorithm 在哪一种场景下反而比 Z-buffer 更有优势？</summary>
+    <div class="detail-body">
+      <p><strong>透明物体渲染（Alpha Blending）。</strong>Painter's Algorithm 天然支持由远到近的 alpha 叠加，而 Z-buffer 对透明物体的正确处理需要 Order-Independent Transparency（OIT）等额外技术。这是 Painter's Algorithm <strong>唯一胜过 Z-buffer 的维度</strong>。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q6. 简述 z-fighting 问题的成因和解决方法。</summary>
+    <div class="detail-body">
+      <p><strong>成因：</strong>两个表面深度值非常接近时，有限的深度缓冲精度（如 24-bit）不足以区分它们，导致两个面在同一个像素上交替出现，产生闪烁伪影。</p>
+      <p><strong>解决方法：</strong>① 提高 z-buffer 位深度（24-bit → 32-bit float）；② 调整近/远裁剪平面距离，缩小深度范围以提高精度；③ 在建模时避免几何体共面。</p>
+    </div>
+  </details>
+</section>
+
+<!-- Section 9: Final Recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div>
+        <h2>最后速记</h2>
+        <p class="lead">考前 5 分钟快速过一遍的核心要点清单</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背分类与定义</p>
+      <ul class="checklist">
+        <li><strong>Object Space:</strong> Back-face Culling（3D 几何层面）</li>
+        <li><strong>Image Space:</strong> Painter's、Z-buffering（2D 像素层面）</li>
+        <li>Back-face: n·(p-v) ≥ 0 → 剔除；透视变换后简化为 z 分量符号判断（本页约定 nz > 0 → 背面）</li>
+        <li>Painter's: 远→近排序绘制，循环重叠失败</li>
+        <li>Z-buffer: 逐像素 min(depth)，order-independent</li>
+      </ul>
+
+      <p class="mini-title" style="margin-top:20px;">必背优缺点对比</p>
+      <ul class="checklist">
+        <li>Back-face: O(n)，仅凸多面体正确</li>
+        <li>Painter's: O(n log n)，循环重叠+穿插失败</li>
+        <li>Z-buffer: O(n×m)，需额外存储，GPU 标配</li>
+        <li>Painter's 唯一优势：透明混合</li>
+        <li>Z-buffer 核心优势：order-independent</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>透视变换后视线方向统一，Back-face 简化为法向量 z 分量判断</li>
+        <li>Back-face Removal 在 Clipping 之前：提前淘汰约 50% 面</li>
+        <li>HSR 在 Shading 之前：只对着色可见像素</li>
+        <li>z-fighting：深度精度不足，两个面交替闪烁</li>
+        <li>凹多面体中 Back-face Culling 会产生空洞</li>
+        <li>管线优化哲学：从粗到细逐步筛选</li>
+      </ul>
+
+      <p class="mini-title" style="margin-top:20px;">完整对比表记忆口诀</p>
+      <ul class="checklist">
+        <li>空间类型 × 复杂度 × 存储 × 循环重叠 × 穿插 × 凹面 × 透明 × 并行 → 8 维度完整覆盖</li>
+        <li>考试时先画表头，再逐列填充</li>
+        <li>Painter's 死穴 = Cyclic Overlap + Intersecting</li>
+        <li>Z-buffer 核心 = Order-Independent + GPU 标配</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div><!-- .content -->
+
+<!-- footer -->
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · M05 隐藏面消除 · Semester B 2025/26 · City University of Hong Kong<br>
+  纯静态复习工具 · 闭卷考试导向 · 所有内容均以"考场能写出来"为唯一标准
+</footer>
+
+</main><!-- .main -->
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

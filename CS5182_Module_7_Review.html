@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M07 · 光照模型与着色方法</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #667085;
+  --soft: #eef4ff; --blue: #155EEF; --blue2: #003C88;
+  --red: #D7422A; --green: #16803C; --orange: #E86A00; --purple: #6941C6;
+  --border: #d9e2ef; --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08); --radius: 18px; --sidebar: 292px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.72;color:var(--ink);background:radial-gradient(circle at top right,rgba(21,94,239,.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f5f7fb 45%,#f7f8fb 100%);min-height:100vh}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:20px 0;max-width:700px}
+.pipe{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(16,24,40,.04);position:relative}
+.pipe b{font-size:14px;font-weight:800;color:var(--blue2);white-space:nowrap;min-width:100px}
+.pipe span{font-size:13px;color:var(--muted)}
+.pipe::after{content:"↓";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:14px;color:var(--border);font-weight:700;z-index:1}
+.pipe:last-child::after{display:none}
+
+/* grid */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:16px 0}
+.card{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05)}
+.card h3{font-size:15px;font-weight:800;color:var(--blue2);margin-bottom:8px}
+.card p,.card li{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{border:1px solid var(--border2);padding:10px 14px;text-align:left}
+th{background:var(--soft);font-weight:700;color:var(--blue2);font-size:13px}
+td{color:var(--ink);font-size:13px}
+
+/* mini-title */
+.mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+
+/* details */
+details{margin:12px 0;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+summary{padding:14px 18px;font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,255,255,.93);color:var(--ink)}
+summary:hover{background:var(--soft)}
+.detail-body{padding:16px 18px;border-top:1px solid var(--border2);font-size:14px;background:rgba(255,255,255,.7)}
+
+/* quick / final-recall */
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.quick .mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:8px;border:none}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:6px 0;font-size:13px;color:var(--ink);padding-left:20px;position:relative}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+
+/* footer */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border2);color:var(--muted);font-size:13px}
+
+/* highlight box for key comparison */
+.highlight-box{background:linear-gradient(135deg,#fef3e8 0%,#fff8f0 100%);border:1px solid #ffe0b2;border-radius:12px;padding:18px 22px;margin:16px 0}
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M07 光照模型与着色方法</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#light-sources">光源类型</a>
+    <a class="nav-link" href="#phong-model">Phong 光照模型</a>
+    <a class="nav-link" href="#ambient">环境光</a>
+    <a class="nav-link" href="#diffuse">漫反射</a>
+    <a class="nav-link" href="#specular">镜面反射</a>
+    <a class="nav-link" href="#flat">Flat Shading</a>
+    <a class="nav-link" href="#gouraud">Gouraud Shading</a>
+    <a class="nav-link" href="#phong-shading">Phong Shading</a>
+    <a class="nav-link" href="#shading-comparison">三种着色对比</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 7 · CS5182 Final Sprint</div>
+  <h2>光照模型与着色方法</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计，覆盖 Phong 光照模型的三分量计算、Gouraud vs Phong 着色的核心区别、以及三种着色方法的完整对比。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>10</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>5+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>2</b><span>数值计算题</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>理解光照如何与表面交互——为什么物体看起来有明暗、高光、颜色变化，以及 GPU 如何高效计算每个像素的最终颜色。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p><a href="CS5182_Module_5_Review.html">M05 隐藏面消除</a> — 理解 Z-buffer 如何确定可见像素；渲染管线的 Shading 阶段在 HSR 之后执行。</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能写出 Phong 公式三分量；能区分"与视点无关"和"与视点有关"；能解释 Gouraud 为何丢失高光；能完成数值计算。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>⭐ <strong>约占 43% 分值核心</strong>：Phong 公式数值计算（Q9 变形）、Gouraud vs Phong 高光分析（Q7 变形）、三种着色对比表。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong><a href="CS5182_Module_5_Review.html">M05 隐藏面消除</a> → <strong>M07 光照模型与着色方法</strong> → <a href="CS5182_Module_8_Review.html">M08 光线追踪与辐射度</a>
+  </div>
+</section>
+
+<!-- #roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M07 是整门课分值最重的模块之一，Phong 公式必须闭卷能默写</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 约占 ~43% 分值 · 核心模块</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>本模块在考试中的定位：</strong>M07 同时考察<strong>概念理解</strong>（Gouraud vs Phong 的区别）、<strong>定性分析</strong>（漫反射与视点无关 / 镜面反射与视点有关）、以及<strong>数值计算</strong>（给定 N, L, V 算出 Phong 三分量的具体数值）。期中 Q7（12 分）和 Q9（15 分）均出自本模块，合计 27 分。
+  </div>
+
+  <p>考试中 M07 相关题目约占 <strong>~43%</strong>（约 2–3 道题）。核心考察点：</p>
+  <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>Phong 公式三分量</strong>：能闭卷写出 $I_a = k_a I_c$、$I_d = k_d I_L \max(0, \mathbf{N}\cdot\mathbf{L})$、$I_s = k_s I_L \max(0, \mathbf{V}\cdot\mathbf{R})^n$</li>
+    <li><strong>反射向量公式</strong>：$\mathbf{R} = 2(\mathbf{N}\cdot\mathbf{L})\mathbf{N} - \mathbf{L}$（必须背下来）</li>
+    <li><strong>漫反射与视点无关 / 镜面反射与视点有关</strong>：这是必考的区分点</li>
+    <li><strong>平行光源 vs 点光源</strong>：平行光源同一平面各点入射角相同；点光源不同</li>
+    <li><strong>Gouraud vs Phong</strong>：Gouraud 插值颜色 → 高光丢失；Phong 插值法向量 → 高光正确</li>
+    <li><strong>$n$ 的作用</strong>：高光指数越大，高光越集中越尖锐</li>
+  </ul>
+
+  <div class="warn">
+    ⚠️ <strong>期中 Q7（12 分）、Q9（15 分）已考过。</strong>期末若考本模块，最可能以<strong>不同数值的 Phong 计算题</strong>或<strong>三种着色方法的完整对比表</strong>（Flat/Gouraud/Phong）出现。计算题的数值会变化，但公式不变。
+  </div>
+</section>
+
+<!-- #light-sources -->
+<section class="section" id="light-sources">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>光源类型</h2>
+        <p class="lead">四种光源各自的特点、方向性、阴影特性</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 基础概念，与 M09 阴影联动</span>
+  </div>
+
+  <div class="grid-4">
+    <div class="card">
+      <h3>Ambient Light<br>环境光</h3>
+      <p>无方向性，均匀来自所有方向，模拟间接光照。无位置、无方向，对场景所有点贡献相同。</p>
+      <p style="margin-top:8px"><span class="label">无阴影</span> <span class="label purple">I<sub>a</sub> = k<sub>a</sub>·I<sub>c</sub></span></p>
+    </div>
+    <div class="card">
+      <h3>Point Light<br>点光源</h3>
+      <p>从一点向所有方向发出光线。近处光源光线发散，远处可近似为平行光。</p>
+      <p style="margin-top:8px"><span class="label red">硬阴影</span> <span class="label">各点入射角不同</span></p>
+    </div>
+    <div class="card">
+      <h3>Area Light<br>面光源</h3>
+      <p>占据有限的一维或二维空间区域。可被物体<strong>部分遮挡</strong>，自然产生半影区域。</p>
+      <p style="margin-top:8px"><span class="label green">软阴影</span> <span class="label orange">半影 Penumbra</span></p>
+    </div>
+    <div class="card">
+      <h3>Spotlight<br>聚光灯</h3>
+      <p>在特定方向上发出近似平行光束，方向性强。类似舞台聚光灯效果。</p>
+      <p style="margin-top:8px"><span class="label">方向性强</span> <span class="label">锥形光束</span></p>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <strong>考试关键区分：</strong><br>
+    · 点光源 → <strong>硬阴影</strong>（Hard Shadow），只有本影（Umbra）<br>
+    · 面光源 → <strong>软阴影</strong>（Soft Shadow），有本影 + 半影（Penumbra）<br>
+    · 平行光源（Directional Light）是点光源在无穷远处的特例，对同一平面上各点入射角相同
+  </div>
+</section>
+
+<!-- #phong-model -->
+<section class="section" id="phong-model">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>Phong 光照模型（三分量总览）</h2>
+        <p class="lead">I = I<sub>a</sub> + I<sub>d</sub> + I<sub>s</sub> — 光照 = 环境 + 漫反射 + 镜面反射</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考：完整公式 + 各分量含义</span>
+  </div>
+
+  <div class="note">
+    📌 Phong 光照模型将光照分解为三个分量之和，模拟物体在光照下的视觉外观。这是计算机图形学中最经典的光照模型。
+  </div>
+
+  <div class="formula">
+<strong>Phong 光照模型 — 单光源完整公式：</strong><br>
+I = k<sub>a</sub> · I<sub>c</sub>  +  k<sub>d</sub> · I<sub>L</sub> · max(0, <strong>N</strong>·<strong>L</strong>)  +  k<sub>s</sub> · I<sub>L</sub> · max(0, <strong>V</strong>·<strong>R</strong>)<sup>n</sup><br>
+&nbsp;&nbsp;&nbsp;&nbsp;↑ 环境光 Ambient &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ 漫反射 Diffuse &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ 镜面反射 Specular
+  </div>
+
+  <div class="formula">
+<strong>多光源扩展公式：</strong><br>
+I = k<sub>a</sub> I<sub>c</sub> + Σ<sub>i=1</sub><sup>N</sup> [ k<sub>d</sub> I<sub>L<sub>i</sub></sub> max(0, <strong>N</strong>·<strong>L</strong><sub>i</sub>) + k<sub>s</sub> I<sub>L<sub>i</sub></sub> max(0, <strong>V</strong>·<strong>R</strong><sub>i</sub>)<sup>n</sup> ]
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>环境光 Ambient</h3>
+      <p><strong>与表面方向无关</strong>，与视点无关。常数背景光，保证物体不完全黑暗。</p>
+    </div>
+    <div class="card">
+      <h3>漫反射 Diffuse</h3>
+      <p><strong>与视点无关</strong>。光向所有方向均匀散射，亮度只取决于入射角 N·L。</p>
+    </div>
+    <div class="card">
+      <h3>镜面反射 Specular</h3>
+      <p><strong>与视点有关</strong>。高光随视点移动而移动，n 控制高光大小。</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>终极考试区分点：</strong>"漫反射与视点无关（不管从哪个方向看都一样）"、"镜面反射与视点有关（高光随视点移动）"——这两句话几乎每道 Phong 相关题都会涉及，必须写到卷子上。
+  </div>
+</section>
+
+<!-- #ambient -->
+<section class="section" id="ambient">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>环境光（Ambient Reflection）</h2>
+        <p class="lead">最简单的分量——常数背景光，保证场景不完全黑暗</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 公式最简单，必须拿分</span>
+  </div>
+
+  <div class="formula">
+<strong>环境光公式：</strong><br>
+I<sub>a</sub> = k<sub>a</sub> · I<sub>c</sub><br><br>
+k<sub>a</sub>：表面环境反射系数（0 < k<sub>a</sub> < 1）<br>
+I<sub>c</sub>：全局环境光强度（常数，来自所有方向）<br>
+特点：与表面方向无关 · 与视点无关 · 无方向性
+  </div>
+
+  <div class="note">
+    📌 环境光是一个<strong>粗糙但必要的近似</strong>。在真实世界中，光在场景中多次弹射产生间接光照。Phong 模型用常数环境光项模拟这种效果，避免物体背面完全黑暗。
+  </div>
+
+  <table>
+    <thead><tr><th>系数 k<sub>a</sub></th><th>含义</th><th>视觉</th></tr></thead>
+    <tbody>
+      <tr><td>k<sub>a</sub> ≈ 0</td><td>完全不反射环境光</td><td>阴影区纯黑</td></tr>
+      <tr><td>k<sub>a</sub> = 0.2</td><td>微弱反射环境光</td><td>阴影区微亮</td></tr>
+      <tr><td>k<sub>a</sub> = k<sub>d</sub></td><td>环境反射 = 漫反射系数（常见简化）</td><td>柔和过渡</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- #diffuse -->
+<section class="section" id="diffuse">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>漫反射（Diffuse Reflection · Lambert's Law）</h2>
+        <p class="lead">与视点无关！亮度只取决于表面法向量与光线方向的夹角</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考：平行光 vs 点光源区分</span>
+  </div>
+
+  <div class="formula">
+<strong>漫反射公式（Lambert's Law）：</strong><br>
+I<sub>d</sub> = k<sub>d</sub> · I<sub>L</sub> · cos θ = k<sub>d</sub> · I<sub>L</sub> · max(0, <strong>N</strong> · <strong>L</strong>)<br><br>
+k<sub>d</sub>：表面漫反射系数<br>
+I<sub>L</sub>：光源强度<br>
+θ：入射角（表面法向量 <strong>N</strong> 与光线方向 <strong>L</strong> 的夹角）<br>
+<strong>N</strong>, <strong>L</strong>：归一化向量（N·L = cos θ）<br><br>
+注意：N·L 可能为负（光从背面照射），需 max(0, N·L) 截断<br>
+特点：<strong>与视点方向无关</strong>（向任意方向均匀散射）
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>入射角 θ = 0°</b>
+      <span>N·L = 1，光线垂直照射表面 → 最亮（I<sub>d</sub> = k<sub>d</sub>·I<sub>L</sub>）</span>
+    </div>
+    <div class="pipe">
+      <b>入射角 θ = 60°</b>
+      <span>N·L = 0.5，光线斜射表面 → 亮度减半</span>
+    </div>
+    <div class="pipe">
+      <b>入射角 θ ≥ 90°</b>
+      <span>N·L ≤ 0，光线从背面照射 → I<sub>d</sub> = 0（max(0, neg) = 0）</span>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <strong>平行光源 vs 点光源 —— 考试高频区分！</strong><br><br>
+    <strong>平行光源（Directional Light）：</strong><br>
+    · 光线方向完全相同（如太阳光）<br>
+    · 对同一平面上所有点，入射角 θ <strong>相同</strong> → I<sub>dA</sub> = I<sub>dB</sub><br><br>
+    <strong>点光源（Point Light）：</strong><br>
+    · 光线方向发散（如台灯）<br>
+    · 对同一平面上不同位置的点，入射角 θ <strong>不同</strong> → I<sub>dA</sub> ≠ I<sub>dB</sub><br>
+    · 更靠近光源直射点的面更亮
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>Q9a / Q9b 考试原题逻辑：</strong>同一平面上 A、B 两点——平行光源下 I<sub>dA</sub> = I<sub>dB</sub>（入射角相同）；点光源下 I<sub>dA</sub> 与 I<sub>dB</sub> 的大小取决于哪点更靠近光源正下方（入射角更小）。
+  </div>
+</section>
+
+<!-- #specular -->
+<section class="section" id="specular">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>镜面反射（Specular Reflection）</h2>
+        <p class="lead">与视点有关！高光随视点移动而移动，n 控制高光大小</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考：反射向量 + n 的作用</span>
+  </div>
+
+  <div class="formula">
+<strong>镜面反射公式：</strong><br>
+I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · cos<sup>n</sup> φ = k<sub>s</sub> · I<sub>L</sub> · max(0, <strong>V</strong> · <strong>R</strong>)<sup>n</sup><br><br>
+k<sub>s</sub>：表面镜面反射系数<br>
+n：镜面反射指数（Specular Exponent），控制高光大小<br>
+&nbsp;&nbsp;&nbsp;&nbsp;n 越大 → 高光越小越尖锐（趋向完美镜面）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;n = ∞ → 完美镜面（perfect mirror）<br>
+φ：反射光方向 <strong>R</strong> 与观察方向 <strong>V</strong> 的夹角<br>
+<strong>R</strong>, <strong>V</strong>：归一化向量<br><br>
+特点：<strong>与视点方向有关</strong>（高光随视点移动而移动）
+  </div>
+
+  <div class="formula">
+<strong>反射向量计算（必须背下来！）：</strong><br>
+<strong>R</strong> = 2(<strong>N</strong>·<strong>L</strong>)<strong>N</strong> − <strong>L</strong><br><br>
+推导：入射光 L 在 N 方向的分量为 (N·L)N，反射光 = 入射光 − 2×法向分量<br>
+验证：|R| = 1（反射向量仍为单位向量）
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>n 小（如 n=1）</h3>
+      <p>高光范围大，边缘模糊。适合粗糙表面（如粉笔、未抛光的木材）。</p>
+    </div>
+    <div class="card">
+      <h3>n 大（如 n=100）</h3>
+      <p>高光范围小，集中尖锐。适合光滑表面（如抛光金属、玻璃、塑料）。</p>
+    </div>
+  </div>
+
+  <div class="note">
+    📌 <strong>cos<sup>n</sup> φ 的几何直觉：</strong>当 φ 很小（观察方向接近反射方向），cos φ ≈ 1 → cos<sup>n</sup> φ ≈ 1，看到强高光。当 φ 略大（偏离反射方向），cos φ < 1 → cos<sup>n</sup> φ 快速衰减（n 越大衰减越快），高光消失。这就是为什么高光只在很小的角度范围内可见。
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>Q9c 考试原题逻辑：</strong>同一 B 点，Viewer 1 和 Viewer 2 从不同方向观察。比较 I<sub>s1</sub> 和 I<sub>s2</sub> 的大小 → 比较 φ<sub>1</sub>（V<sub>1</sub> 与 R 的夹角）和 φ<sub>2</sub>（V<sub>2</sub> 与 R 的夹角）。夹角越小（越靠近反射方向），高光越强。
+  </div>
+</section>
+
+<!-- #flat -->
+<section class="section" id="flat">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>Flat Shading（平面着色）</h2>
+        <p class="lead">最简单的着色方法——每个多边形一个颜色</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 三种着色中最快但最粗糙</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>Step 1</b>
+      <span>计算多边形的面法向量（所有顶点共享一个法向量）</span>
+    </div>
+    <div class="pipe">
+      <b>Step 2</b>
+      <span>使用 Phong 公式计算一个颜色值（在面中心或任意顶点处）</span>
+    </div>
+    <div class="pipe">
+      <b>Step 3</b>
+      <span>将该颜色填充整个多边形所有像素</span>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr><td>计算量最少，速度最快</td><td>相邻多边形之间颜色不连续（intensity discontinuity）</td></tr>
+      <tr><td>实现简单</td><td>多边形边界明显，视觉效果粗糙</td></tr>
+      <tr><td>适合光源/视点很远或多边形很小的情况</td><td>完全无法呈现高光效果</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- #gouraud -->
+<section class="section" id="gouraud">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">7</div>
+      <div>
+        <h2>Gouraud Shading（高洛德着色）</h2>
+        <p class="lead">颜色插值——在顶点算光照，内部线性插值颜色</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 最高频考点：为何丢失高光</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>Step 1</b>
+      <span>计算每个顶点的法向量：n<sub>vertex</sub> = normalize(Σ 相邻面法向量)</span>
+    </div>
+    <div class="pipe">
+      <b>Step 2</b>
+      <span>在每个顶点处用 Phong 公式计算颜色值 C<sub>v</sub></span>
+    </div>
+    <div class="pipe">
+      <b>Step 3</b>
+      <span>在多边形内部用<strong>双线性插值</strong>（沿扫描线）得到像素颜色</span>
+    </div>
+  </div>
+
+  <div class="note">
+    📌 <strong>优点：</strong>消除相邻面颜色不连续，视觉平滑。比 Phong Shading 快，硬件广泛支持。适合漫反射材质（布料、哑光表面）。
+  </div>
+
+  <div class="exam">
+    🚫 <strong>核心缺陷 —— Gouraud 为何漏掉高光（Q7a 答案！）：</strong><br><br>
+    <strong>根本原因：颜色插值 vs 法向量插值</strong><br><br>
+    Gouraud 插值的是<strong>"颜色"（Color Interpolation）</strong>，而高光（镜面反射）是非线性的：<br>
+    I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (<strong>V</strong>·<strong>R</strong>)<sup>n</sup> → 当 n 很大时，高光只在很小角度范围内出现<br><br>
+    <strong>若高光的峰值恰好出现在多边形内部（而非顶点处）：</strong><br>
+    · 顶点处 V·R 较小 → 顶点颜色较暗<br>
+    · 内部 V·R 最大 → 高光应出现在这里<br>
+    · 但 Gouraud 是从"较暗的顶点颜色"线性插值 → 内部颜色也偏暗<br>
+    · <strong>高光消失！</strong><br><br>
+    <strong>若高光出现在顶点处：</strong><br>
+    · 顶点处计算出明亮的高光颜色<br>
+    · 高光随视点移动（因为是在顶点处计算的），造成<strong>"游走"（Highlight Walking）</strong>效果
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试关键词：</strong>颜色线性插值 / 非线性高光 / 内部峰值无法捕捉 / 高光丢失（disappear）/ 高光游走（flickering / walking）。
+  </div>
+</section>
+
+<!-- #phong-shading -->
+<section class="section" id="phong-shading">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">8</div>
+      <div>
+        <h2>Phong Shading（冯氏着色 · 法向量插值着色）</h2>
+        <p class="lead">法向量插值——在每像素重新计算 Phong 光照，高光精确</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ Q7b 答案：插法向量非颜色</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>Step 1</b>
+      <span>计算每个顶点的法向量 n<sub>v</sub>（取相邻面法向量加权平均）</span>
+    </div>
+    <div class="pipe">
+      <b>Step 2</b>
+      <span>在多边形内部<strong>双线性插值法向量</strong>：n<sub>pixel</sub> = normalize(lerp(n<sub>left</sub>, n<sub>right</sub>, t))</span>
+    </div>
+    <div class="pipe">
+      <b>Step 3</b>
+      <span>在每个像素处用插值后的法向量 n<sub>pixel</sub> 和 Phong 公式<strong>重新计算</strong>颜色</span>
+    </div>
+  </div>
+
+  <div class="note">
+    📌 <strong>解决高光的关键：</strong>Phong Shading 不插值颜色，而是插值<strong>法向量（Normal Vector）</strong>。高光峰值无论落在三角形的哪个位置，该像素处的法向量都能正确指向高光方向 → Phong 公式在该像素计算出正确的 I<sub>s</sub> → 高光被精确捕捉。
+  </div>
+
+  <div class="answer-box">
+    ✅ <strong>Q7b 标准答案框架：</strong><br><br>
+    ① Phong Shading <strong>不插值颜色</strong>，而是插值<strong>法向量（Normal Vector）</strong><br>
+    ② 在三角形内部每个像素处，对顶点法向量做双线性插值并归一化，得到每像素法向量<br>
+    ③ 对<strong>每个像素</strong>独立重新计算完整的 Phong Illumination Model<br>
+    ④ 无论高光峰值落在哪里（内部或顶点），都能被精确捕获，不依赖多边形密度<br>
+    ⑤ 代价：每像素都要执行完整 Phong 公式 → 计算开销远高于 Gouraud
+  </div>
+</section>
+
+<!-- #shading-comparison -->
+<section class="section" id="shading-comparison">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">9</div>
+      <div>
+        <h2>三种着色方法对比表格</h2>
+        <p class="lead">Flat vs Gouraud vs Phong — 插值对象、计算位置、高光、开销、适用场景</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 高频完整三方对比</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>对比维度</th><th>Flat Shading</th><th>Gouraud Shading</th><th>Phong Shading</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>插值对象</strong></td>
+        <td>无插值（每多边形一个颜色）</td>
+        <td><span class="label orange">颜色（Color）</span></td>
+        <td><span class="label purple">法向量（Normal Vector）</span></td>
+      </tr>
+      <tr>
+        <td><strong>计算位置</strong></td>
+        <td>每多边形一次</td>
+        <td>每顶点一次</td>
+        <td><span class="label red">每像素一次</span></td>
+      </tr>
+      <tr>
+        <td><strong>高光（Specular）表现</strong></td>
+        <td>❌ 完全无法呈现</td>
+        <td>❌ 高光易丢失或"游走"（非线性被线性化）</td>
+        <td>✅ 精确，无论高光在三角形哪个位置</td>
+      </tr>
+      <tr>
+        <td><strong>相邻面颜色连续性</strong></td>
+        <td>❌ 相邻面颜色突变（边界明显）</td>
+        <td>✅ 平滑过渡</td>
+        <td>✅ 平滑过渡</td>
+      </tr>
+      <tr>
+        <td><strong>计算开销</strong></td>
+        <td>最低（最快）</td>
+        <td>中等</td>
+        <td>最高（最慢，逐像素）</td>
+      </tr>
+      <tr>
+        <td><strong>GPU 硬件支持</strong></td>
+        <td>广泛</td>
+        <td>广泛（图形加速器标配）</td>
+        <td>现代 GPU 支持（可编程着色器）</td>
+      </tr>
+      <tr>
+        <td><strong>适用场景</strong></td>
+        <td>极低模、远景物体、快速预览</td>
+        <td>漫反射材质（布料、哑光表面）</td>
+        <td><strong>高光材质（金属、塑料、玻璃）</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight-box">
+    <strong>核心区别记忆口诀：</strong><br>
+    · Flat：一个多边形 → 一个颜色<br>
+    · Gouraud：一个顶点 → 一个颜色 → 内部<strong>插值颜色</strong><br>
+    · Phong：一个顶点 → 一个法向量 → 内部<strong>插值法向量</strong> → 每像素算颜色<br><br>
+    <strong>Gouraud 失效条件：</strong>高光指数 n 很大（小面积高光）且高光峰值在三角形内部时，Gouraud 会完全漏掉高光。
+  </div>
+</section>
+
+<!-- #templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div>
+        <h2>考场答案模板</h2>
+        <p class="lead">闭卷可直接套用的答题框架</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 两套模板覆盖本模块全部题型</span>
+  </div>
+
+  <div class="mini-title">模板 A｜Gouraud Shading 为什么会漏掉高光（Q7a 答题框架）</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"Why does Gouraud shading fail to render specular highlights correctly?"</p>
+    <p style="margin-top:12px"><strong>答题框架（考场直接写）：</strong></p>
+    <p>① <strong>Gouraud 的做法</strong>：仅在顶点处计算完整 Phong 光照（含 Specular 分量），然后在三角形内部对<strong>颜色（Color）进行线性插值</strong>。</p>
+    <p>② <strong>问题根源</strong>：Specular Highlight 是<strong>非线性</strong>效果（I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (V·R)<sup>n</sup>），当 n 较大时高光极度集中，峰值往往落在<strong>三角形内部</strong>而非顶点处。</p>
+    <p>③ <strong>高光消失的逻辑</strong>：顶点处 V·R 较小 → 顶点颜色较暗 → 从暗色顶点做线性插值 → 内部颜色也暗 → <strong>高光完全丢失</strong>。</p>
+    <p>④ <strong>高光闪烁的逻辑</strong>：若高光偶然靠近顶点 → 随相机移动顶点处 V·R 剧烈变化 → 颜色不稳定 → <strong>高光闪烁（flickering）</strong>。</p>
+    <p style="margin-top:8px"><strong>关键词：</strong>颜色线性插值 / 非线性高光 / 内部峰值无法捕捉</p>
+  </div>
+
+  <div class="mini-title">模板 B｜Phong Shading 如何解决 Gouraud 的问题（Q7b 答题框架）</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"How does Phong shading address the highlight problem in Gouraud shading?"</p>
+    <p style="margin-top:12px"><strong>答题框架（考场直接写）：</strong></p>
+    <p>① <strong>核心差异</strong>：Phong Shading 不插值<strong>颜色</strong>，而是插值<strong>法向量（Normal Vector）</strong>。</p>
+    <p>② <strong>流程</strong>：每个顶点取相邻面法向量的加权平均得顶点法向量 → 在三角形内部对顶点法向量做双线性插值（需归一化）→ 用插值法向量在每个像素独立执行完整 Phong 光照计算。</p>
+    <p>③ <strong>解决高光的原因</strong>：高光峰值无论落在三角形的哪个位置，该像素处的法向量都能正确指向高光方向 → Phong 公式在该像素计算出正确的 I<sub>s</sub> → 高光被精确捕捉。</p>
+    <p>④ <strong>代价</strong>：每像素都要执行光照计算 → 计算开销远高于 Gouraud。</p>
+    <p style="margin-top:8px"><strong>一句话对比：</strong>Gouraud 插颜色；Phong 插法向量，逐像素算颜色。</p>
+  </div>
+
+  <div class="mini-title">模板 C｜Phong 光照模型数值计算框架（Q9 答题框架）</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong>"Calculate the diffuse/specular intensity given angles" / "比较两点光照强度大小"</p>
+    <p style="margin-top:12px"><strong>三分量公式（必须熟记）：</strong></p>
+    <p>① <strong>环境光</strong>：I<sub>a</sub> = k<sub>a</sub> · I<sub>c</sub>（与表面方向无关，与视点无关）</p>
+    <p>② <strong>漫反射</strong>：I<sub>d</sub> = k<sub>d</sub> · I<sub>L</sub> · max(0, N·L)（<strong>与视点无关</strong>）</p>
+    <p>③ <strong>镜面反射</strong>：I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · max(0, V·R)<sup>n</sup>（<strong>与视点有关</strong>）</p>
+    <p style="margin-top:8px"><strong>反射向量：</strong>R = 2(N·L)N − L</p>
+    <p style="margin-top:12px"><strong>比较大小的快速逻辑：</strong></p>
+    <p>· 比较漫反射：看 N·L（入射角越小越亮）</p>
+    <p>· 平行光源 → 同一平面各点 I<sub>d</sub> 相同；点光源 → 各点 I<sub>d</sub> 不同</p>
+    <p>· 比较镜面反射：看 V·R（观察方向越靠近反射方向越亮）</p>
+    <p style="margin-top:12px"><strong>数值计算步骤：</strong></p>
+    <p>Step 1: 算 I<sub>a</sub> = k<sub>a</sub> × I<sub>c</sub></p>
+    <p>Step 2: 算 N·L → I<sub>d</sub> = k<sub>d</sub> × I<sub>L</sub> × N·L</p>
+    <p>Step 3: 算 R = 2(N·L)N − L（验证 |R| = 1）</p>
+    <p>Step 4: 算 V·R → I<sub>s</sub> = k<sub>s</sub> × I<sub>L</sub> × (V·R)<sup>n</sup></p>
+    <p>Step 5: I = I<sub>a</sub> + I<sub>d</sub> + I<sub>s</sub></p>
+  </div>
+</section>
+
+<!-- #quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div>
+        <h2>自测题</h2>
+        <p class="lead">闭卷状态下能完成这些题，考试就稳了</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 含数值计算 + 概念对比</span>
+  </div>
+
+  <details>
+    <summary>P7-1. Phong 光照模型三分量数值计算</summary>
+    <div class="detail-body">
+      <p><strong>已知场景参数：</strong></p>
+      <p>· 环境光强度 I<sub>c</sub> = 0.3，环境反射系数 k<sub>a</sub> = 0.2</p>
+      <p>· 光源强度 I<sub>L</sub> = 1.0，漫反射系数 k<sub>d</sub> = 0.6，镜面反射系数 k<sub>s</sub> = 0.4，高光指数 n = 16</p>
+      <p>· 表面法向量 N = (0, 1, 0)（朝上）</p>
+      <p>· 光源方向 L = (0, cos 30°, sin 30°) = (0, √3/2, 0.5)（已归一化）</p>
+      <p>· 观察方向 V = (0, 1, 0)（正上方，已归一化）</p>
+
+      <p style="margin-top:16px"><strong>(a) 环境反射 I<sub>a</sub>：</strong></p>
+      <p>I<sub>a</sub> = k<sub>a</sub> · I<sub>c</sub> = 0.2 × 0.3 = <strong>0.06</strong></p>
+
+      <p style="margin-top:12px"><strong>(b) 漫反射 I<sub>d</sub>：</strong></p>
+      <p>N · L = (0)(0) + (1)(√3/2) + (0)(0.5) = √3/2 ≈ <strong>0.866</strong></p>
+      <p>I<sub>d</sub> = k<sub>d</sub> · I<sub>L</sub> · (N·L) = 0.6 × 1.0 × 0.866 ≈ <strong>0.520</strong></p>
+
+      <p style="margin-top:12px"><strong>(c) 反射向量 R：</strong></p>
+      <p>R = 2(N·L)N − L = 2·(√3/2)·(0,1,0) − (0, √3/2, 0.5)</p>
+      <p>= (0, √3, 0) − (0, √3/2, 0.5) = <strong>(0, √3/2, −0.5)</strong></p>
+      <p>验证：|R| = √(0 + 3/4 + 1/4) = 1 ✓</p>
+
+      <p style="margin-top:12px"><strong>(d) 镜面反射 I<sub>s</sub>：</strong></p>
+      <p>V · R = (0)(0) + (1)(√3/2) + (0)(−0.5) = √3/2 ≈ 0.866</p>
+      <p>I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (V·R)<sup>n</sup> = 0.4 × 1.0 × (0.866)<sup>16</sup></p>
+      <p>(0.866)<sup>16</sup> = (0.866²)⁸ = (0.75)⁸ = 0.75⁴ × 0.75⁴ ≈ 0.316 × 0.316 ≈ <strong>0.100</strong></p>
+      <p>I<sub>s</sub> ≈ 0.4 × 0.100 = <strong>0.040</strong></p>
+
+      <p style="margin-top:12px"><strong>(e) 总光照 I：</strong></p>
+      <p>I = I<sub>a</sub> + I<sub>d</sub> + I<sub>s</sub> = 0.06 + 0.520 + 0.040 = <strong>0.620</strong></p>
+
+      <div class="warn" style="margin-top:16px">
+        ⚠️ <strong>考试要点：</strong>反射向量公式 R = 2(N·L)N − L 必须背下来。n 较大时 (V·R)<sup>n</sup> 会迅速衰减（高光集中），计算时可用逐步平方简化。
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>P7-2. 三种着色方法完整对比</summary>
+    <div class="detail-body">
+      <p><strong>请用一张表格比较 Flat Shading、Gouraud Shading 和 Phong Shading 在以下五个维度上的差异：</strong></p>
+      <p>插值对象、计算位置、高光表现、计算开销、适用场景</p>
+
+      <table style="margin-top:12px">
+        <thead>
+          <tr><th>维度</th><th>Flat Shading</th><th>Gouraud Shading</th><th>Phong Shading</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>插值对象</strong></td><td>无插值（每多边形一个颜色）</td><td>颜色（Color）</td><td>法向量（Normal Vector）</td></tr>
+          <tr><td><strong>计算位置</strong></td><td>每多边形一次</td><td>每顶点一次</td><td>每像素一次</td></tr>
+          <tr><td><strong>高光表现</strong></td><td>❌ 完全无法呈现</td><td>❌ 高光易丢失或"游走"</td><td>✅ 精确</td></tr>
+          <tr><td><strong>计算开销</strong></td><td>最低</td><td>中等</td><td>最高（逐像素）</td></tr>
+          <tr><td><strong>适用场景</strong></td><td>远景物体、快速预览</td><td>漫反射材质（布料、哑光表面）</td><td>高光材质（金属、塑料、玻璃）</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:12px"><strong>核心区别记忆口诀：</strong></p>
+      <p>· Flat：一个多边形 → 一个颜色</p>
+      <p>· Gouraud：一个顶点 → 一个颜色 → 内部插值颜色</p>
+      <p>· Phong：一个顶点 → 一个法向量 → 内部插值法向量 → 每像素算颜色</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q7 变形. Gouraud Shading 高光问题分析</summary>
+    <div class="detail-body">
+      <p><strong>(a) 为何 Gouraud Shading 无法正确呈现高光？</strong></p>
+      <p>Gouraud Shading 仅在<strong>顶点</strong>处计算完整 Phong 光照（含 Specular 分量），然后将顶点颜色值在三角形内部做<strong>线性插值</strong>。</p>
+      <p>由于 Specular Highlight 是<strong>非线性</strong>效果（I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (V·R)<sup>n</sup>），当 n 较大时高光极度集中，高光峰值往往落在三角形内部而非顶点处。从暗色顶点做线性插值 → 内部仍暗 → 高光消失。</p>
+
+      <p style="margin-top:12px"><strong>(b) Phong Shading 如何解决此问题？</strong></p>
+      <p>Phong Shading 不插值颜色，而是插值<strong>法向量</strong>。在三角形内部每个像素处对顶点法向量做双线性插值并归一化，然后对每个像素独立重新计算完整 Phong 光照。无论高光峰值落在哪里，都能被精确捕获。</p>
+      <p><strong>代价：</strong>每像素都要执行完整 Phong 公式，计算开销远高于 Gouraud。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q9 变形. 漫反射与镜面反射关系分析</summary>
+    <div class="detail-body">
+      <p><strong>(a) 平行光源下，同一平面上 A、B 两点 I<sub>dA</sub> 和 I<sub>dB</sub> 的关系？</strong></p>
+      <p>平行光源光线方向完全相同，A 和 B 处的入射角 θ 完全相同 → I<sub>dA</sub> = I<sub>dB</sub>。</p>
+
+      <p style="margin-top:12px"><strong>(b) 点光源下，I<sub>dA</sub> 和 I<sub>dB</sub> 的关系？</strong></p>
+      <p>点光源光线发散，A 和 B 处光线方向不同，入射角 θ<sub>A</sub> ≠ θ<sub>B</sub>。哪点更靠近光源正下方（入射角更小）→ 哪点更亮。</p>
+
+      <p style="margin-top:12px"><strong>(c) 点光源下 B 点朝 Viewer 1 和 Viewer 2 方向的镜面反射 I<sub>s1</sub> 和 I<sub>s2</sub> 的关系？</strong></p>
+      <p>镜面反射 I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · (V·R)<sup>n</sup>，与视点有关。比较 φ<sub>1</sub>（V<sub>1</sub> 与 R 的夹角）和 φ<sub>2</sub>（V<sub>2</sub> 与 R 的夹角）：</p>
+      <p>· φ 越小（越靠近反射方向）→ cos φ 越大 → I<sub>s</sub> 越大</p>
+      <p>· 哪边更靠近理想反射方向，哪边看到更高光</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>附加题. 反射向量公式推导</summary>
+    <div class="detail-body">
+      <p><strong>写出反射向量 R 的完整公式并解释每一项的含义。</strong></p>
+      <p style="margin-top:8px"><strong>公式：</strong>R = 2(N·L)N − L</p>
+      <p><strong>推导：</strong>入射光 L 在法向量 N 方向的分量为 (N·L)N。反射光 = 入射光 − 2 × 法向分量 = L − 2[(−L)·N]N = 2(N·L)N − L。</p>
+      <p><strong>验证：</strong>反射向量仍为单位向量（|R| = 1），因为反射不改变长度。</p>
+      <p><strong>向量方向约定：</strong>L 指向光源（从表面点出发），R 指向反射方向（从表面点出发），N 为表面外法向量。</p>
+    </div>
+  </details>
+</section>
+
+<!-- #final-recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div>
+        <h2>最后速记</h2>
+        <p class="lead">考前 5 分钟快速过一遍，确保必背内容不遗漏</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ Phong 公式速查卡</span>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背公式（闭卷必须能默写）</p>
+      <ul class="checklist">
+        <li><strong>Phong 总公式：</strong>I = k<sub>a</sub>I<sub>c</sub> + k<sub>d</sub>I<sub>L</sub>max(0,N·L) + k<sub>s</sub>I<sub>L</sub>max(0,V·R)<sup>n</sup></li>
+        <li><strong>环境光：</strong>I<sub>a</sub> = k<sub>a</sub> · I<sub>c</sub></li>
+        <li><strong>漫反射：</strong>I<sub>d</sub> = k<sub>d</sub> · I<sub>L</sub> · max(0, N·L)</li>
+        <li><strong>镜面反射：</strong>I<sub>s</sub> = k<sub>s</sub> · I<sub>L</sub> · max(0, V·R)<sup>n</sup></li>
+        <li><strong>反射向量：</strong>R = 2(N·L)N − L</li>
+        <li><strong>多光源扩展：</strong>环境光只加一次，漫反射+镜面按光源累加</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">必背区分点（几乎每道题都涉及）</p>
+      <ul class="checklist">
+        <li><strong>漫反射与视点无关</strong>（不管从哪个方向看都一样）</li>
+        <li><strong>镜面反射与视点有关</strong>（高光随视点移动）</li>
+        <li><strong>平行光源：</strong>同一平面各点入射角相同 → I<sub>dA</sub> = I<sub>dB</sub></li>
+        <li><strong>点光源：</strong>同一平面各点入射角不同 → I<sub>dA</sub> ≠ I<sub>dB</sub></li>
+        <li><strong>n 的作用：</strong>n 越大 → 高光越小越尖锐</li>
+        <li><strong>n = ∞：</strong>完美镜面</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="quick" style="margin-top:20px">
+    <div>
+      <p class="mini-title">三种着色方法速记</p>
+      <ul class="checklist">
+        <li><strong>Flat：</strong>每多边形一次，颜色不连续，最快</li>
+        <li><strong>Gouraud：</strong>顶点算颜色 → 内部<strong>插颜色</strong> → 高光丢</li>
+        <li><strong>Phong：</strong>顶点算法向量 → 内部<strong>插法向量</strong> → 逐像素算 → 高光正确</li>
+        <li><strong>Gouraud 失效条件：</strong>n 大 + 高光在三角形内部</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>N·L 必须用 <strong>max(0, N·L)</strong> 截断（背面光照为 0）</li>
+        <li>R = 2(N·L)N − L，注意是<strong>减去 L</strong> 不是加</li>
+        <li>插值法向量后必须 <strong>normalize</strong></li>
+        <li>Phong Shading 在 <strong>片段着色器（Fragment Shader）</strong> 执行</li>
+        <li>Gouraud Shading 在 <strong>顶点着色器（Vertex Shader）</strong> 执行</li>
+        <li>面光源 → 软阴影（有半影）；点光源 → 硬阴影（只有本影）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · M07 光照模型与着色方法 · Semester B 2025/26
+</footer>
+
+</div><!-- .content -->
+</main><!-- .main -->
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

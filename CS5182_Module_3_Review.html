@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M03 · 几何变换与矩阵计算</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --paper: #ffffff;
+  --ink: #172033;
+  --muted: #667085;
+  --soft: #eef4ff;
+  --blue: #155EEF;
+  --blue2: #003C88;
+  --red: #D7422A;
+  --green: #16803C;
+  --orange: #E86A00;
+  --purple: #6941C6;
+  --border: #d9e2ef;
+  --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08);
+  --radius: 18px;
+  --sidebar: 292px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 15px; line-height: 1.72; color: var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(21,94,239,.12), transparent 34%),
+    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 45%, #f7f8fb 100%);
+  min-height: 100vh;
+}
+
+/* ── code block ── */
+pre {
+  background: #111827; color: #e5e7eb;
+  border-radius: 12px; padding: 20px 24px; overflow-x: auto;
+  margin: 14px 0; font-family: "SFMono-Regular","Consolas","Menlo","Fira Code",monospace;
+  font-size: 13px; line-height: 1.7;
+}
+pre code { background: none; padding: 0; color: inherit; }
+code {
+  font-family: "SFMono-Regular","Consolas","Menlo","Fira Code",monospace;
+  font-size: 13px; background: var(--soft); padding: 2px 6px; border-radius: 4px;
+}
+pre .cm { color: #6b7280; }
+pre .kw { color: #60a5fa; }
+pre .st { color: #34d399; }
+pre .nu { color: #fb923c; }
+pre .er { color: #f87171; }
+pre .ok { color: #a3e635; }
+
+/* ── grid ── */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 18px 0; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 18px 0; }
+
+.card {
+  background: rgba(255,255,255,.93); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 20px;
+  box-shadow: 0 10px 28px rgba(16,24,40,.05);
+}
+.card h3 { margin-top: 0; font-size: 16px; }
+.card p { font-size: 14px; color: var(--muted); }
+
+/* ── table ── */
+table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
+thead th {
+  background: #f8fafc; padding: 10px 14px; text-align: left;
+  font-weight: 700; color: var(--blue2); border-bottom: 2px solid var(--border);
+}
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border2); vertical-align: top; }
+tbody tr:hover { background: #fafbff; }
+
+/* ── pipeline ── */
+.pipeline { display: flex; flex-wrap: wrap; gap: 0; margin: 18px 0; align-items: stretch; }
+.pipe {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 18px; background: var(--soft); border-radius: 10px;
+  font-size: 13px; text-align: center; flex: 1; min-width: 100px;
+  position: relative; margin-right: 20px;
+}
+.pipe::after {
+  content: "↓"; position: absolute; right: -16px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: var(--blue); font-weight: 800;
+}
+.pipe:last-child::after { content: none; margin-right: 0; }
+.pipe b { font-weight: 800; color: var(--blue); }
+.pipe span { color: var(--muted); }
+
+/* ── details / quiz ── */
+details {
+  background: rgba(255,255,255,.93); border: 1px solid var(--border2);
+  border-radius: 14px; margin-bottom: 12px;
+}
+details summary {
+  padding: 16px 20px; font-weight: 700; font-size: 15px;
+  color: var(--blue2); cursor: pointer; list-style: none;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: "▸ "; color: var(--blue); font-weight: 800; }
+details[open] summary::before { content: "▾ "; }
+.detail-body { padding: 0 20px 20px; line-height: 1.7; }
+
+/* ── quick / final recall ── */
+.quick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.quick .mini-title { font-weight: 800; font-size: 15px; color: var(--blue2); margin-bottom: 10px; }
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li {
+  position: relative; padding: 6px 0 6px 24px; font-size: 14px;
+  border-bottom: 1px solid var(--border2);
+}
+.checklist li::before {
+  content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 800;
+}
+
+.mini-title { font-weight: 800; font-size: 16px; color: var(--blue2); margin: 20px 0 10px; }
+.mini-title:first-child { margin-top: 0; }
+
+/* ── matrix reference table ── */
+.matrix-ref { width: 100%; }
+.matrix-ref td { vertical-align: top; padding: 12px; }
+.matrix-ref td:first-child { white-space: nowrap; font-weight: 700; color: var(--blue2); }
+.matrix-ref pre { margin: 0; padding: 12px 16px; font-size: 12px; }
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}</style>
+</head>
+<body>
+
+<!-- layout -->
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M03 · 几何变换与矩阵计算</h2>
+  </div>
+  <nav class="nav-group">
+    <a class="nav-link" href="#roadmap">1. 总览与考试定位</a>
+    <a class="nav-link" href="#homogeneous">2. 齐次坐标基础</a>
+    <a class="nav-link" href="#2d-transforms">3. 2D 变换矩阵大全</a>
+    <a class="nav-link" href="#3d-transforms">4. 3D 变换矩阵大全</a>
+    <a class="nav-link" href="#transform-order">5. 变换顺序规则</a>
+    <a class="nav-link" href="#arbitrary-axis">6. 绕任意轴旋转三步技巧</a>
+    <a class="nav-link" href="#inverse">7. 逆变换</a>
+    <a class="nav-link" href="#composite">8. 复合变换解题实战</a>
+    <a class="nav-link" href="#templates">9. 考场答案模板</a>
+    <a class="nav-link" href="#quiz">10. 自测题</a>
+    <a class="nav-link" href="#final-recall">11. 最后速记</a>
+  </nav>
+</aside>
+
+<!-- main -->
+<div class="main">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 3 · CS5182 Final Sprint</div>
+  <h2>几何变换与矩阵计算</h2>
+  <p class="hero-sub">
+    这是 <strong>占 33% 考试分值</strong> 的绝对核心模块——期末必有约 2 道手写矩阵计算题。<br>
+    掌握每个变换的完整矩阵形式、变换顺序的从右到左规则、以及三步技巧，是拉开分差的关键。
+  </p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>7</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>6+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>2-3</b><span>手算大题</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>矩阵全默写</span></div>
+  </div>
+</header>
+
+<div class="content">
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>掌握 3D 图形在渲染管线中的坐标变换——平移、缩放、旋转、剪切的齐次坐标矩阵表示，以及复合变换的矩阵组合方法。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p>M02 三维物体建模（理解顶点坐标在 Object Space 中的表示方式）</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能在闭卷考试中完整写出 2D/3D 所有变换矩阵、正确排列复合变换顺序、并完成手算大题。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>手写矩阵计算（33%）、绕任意轴旋转三步技巧、变换顺序判断、矩阵分解识别</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong> M02 三维物体建模 → <strong>M03 ⭐ 几何变换</strong> → M04 投影与裁剪
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 1: 总览与考试定位 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M03 是整门课分值最高的单一模块，决定你能否及格的关键</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 33% 分值</span>
+  </div>
+
+  <div class="note">
+    <strong>📌 模块地位：</strong> M03 几何变换是光栅化渲染管线中 <strong>World Coordinate Transformation</strong> 阶段的核心数学基础。Object Space → World Space 的变换全部由 M03 的矩阵完成。期末约 2 道手算题直接来自本章。
+  </div>
+
+  <h3>考试分值分布预估</h3>
+  <table>
+    <thead>
+      <tr><th>题型</th><th>分值</th><th>出现概率</th><th>典型考法</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>手写矩阵计算题</td><td>10–12 分</td><td>🔴 极高</td><td>给定变换描述，写出完整矩阵序列并计算</td></tr>
+      <tr><td>绕任意轴旋转</td><td>8–12 分</td><td>🔴 高</td><td>套用三步技巧，写出 M = T·R·T⁻¹</td></tr>
+      <tr><td>矩阵分解识别</td><td>6–10 分</td><td>🟠 中高</td><td>给定 3×3 或 4×4 矩阵，拆解出旋转/缩放/平移分量</td></tr>
+      <tr><td>变换顺序判断</td><td>4–6 分</td><td>🟠 中</td><td>给出两种顺序，判断结果是否相同，解释原因</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <strong>⚠️ 本章最易失分点（按频率排序）：</strong><br>
+    ① <strong>R<sub>y</sub> 的 sinθ 符号写反</strong>（−sinθ 在第三行第一列，+sinθ 在第一行第三列）；<br>
+    ② <strong>复合变换顺序写反</strong>（忘记录"先做的变换写在右边"）；<br>
+    ③ <strong>绕任意轴旋转忘记平移步骤</strong>（轴不过原点时直接套旋转矩阵）。
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 2: 齐次坐标基础 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="homogeneous">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>齐次坐标基础</h2>
+        <p class="lead">为何引入第 4 维——让平移也能写成矩阵乘法</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 概念常考</span>
+  </div>
+
+  <h3>定义</h3>
+  <p>齐次坐标是在原有 <em>n</em> 维坐标后增加第 <em>n+1</em> 个分量 <em>h</em>，将平移、旋转、缩放统一表示为矩阵乘法的坐标表示方法。</p>
+
+  <div class="formula">
+    <strong>2D 齐次坐标：</strong> 点 (x, y) → (x, y, 1)，通用形式 (xh, yh, h)，其中 x = xh/h, y = yh/h<br>
+    <strong>3D 齐次坐标：</strong> 点 (x, y, z) → (x, y, z, 1)<br>
+    <strong>向量：</strong> 方向向量 w = 0（平移不影响方向），位置点 w = 1
+  </div>
+
+  <h3>为何引入齐次坐标？</h3>
+  <table>
+    <thead><tr><th>维度</th><th>普通坐标</th><th>齐次坐标</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>平移</td>
+        <td>P' = P + T（加法，无法写成矩阵乘法）</td>
+        <td>P' = T · P（矩阵乘法，统一所有变换）</td>
+      </tr>
+      <tr>
+        <td>复合变换</td>
+        <td>需要分开处理，不能预乘合并</td>
+        <td>多个变换可以预乘成一个矩阵：M = M<sub>n</sub> · ... · M<sub>1</sub></td>
+      </tr>
+      <tr>
+        <td>性能</td>
+        <td>N 个点 × K 个变换 = 每个点逐次计算</td>
+        <td>预乘得 M，再 M · P（1000 个点 × 100 个变换 → 1 个矩阵 × 1000 个点）</td>
+      </tr>
+      <tr>
+        <td>点和向量的区分</td>
+        <td>无法区分</td>
+        <td>w=1（点）/ w=0（向量），平移不影响向量</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="exam">
+    <strong>🚫 常见错误：</strong> "齐次坐标只是为了方便写代码"——错误！核心原因是平移是加法运算，在普通笛卡尔坐标下无法用 2×2 或 3×3 矩阵乘法表示，必须用齐次坐标扩展一维。
+  </div>
+
+  <div class="note">
+    <strong>📌 考试标准答案：</strong> "引入齐次坐标使平移也能用矩阵乘法表示，从而将所有变换（平移、缩放、旋转、剪切）统一为矩阵乘法，多个变换可预乘合并成一个矩阵，大幅减少计算量。"
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 3: 2D 变换矩阵大全 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="2d-transforms">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>2D 变换矩阵大全</h2>
+        <p class="lead">每一个变换必须能默写出完整的 3×3 齐次矩阵形式</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考默写</span>
+  </div>
+
+  <h3>① 2D 平移矩阵</h3>
+  <p>P' = T(t<sub>x</sub>, t<sub>y</sub>) · P</p>
+  <pre><code>         | 1  0  tx |
+T(tx,ty)= | 0  1  ty |
+         | 0  0  1  |</code></pre>
+  <p><strong>逆矩阵：</strong> T<sup>−1</sup>(t<sub>x</sub>, t<sub>y</sub>) = T(−t<sub>x</sub>, −t<sub>y</sub>)</p>
+  <p>效果：(x, y) → (x + t<sub>x</sub>, y + t<sub>y</sub>)</p>
+
+  <h3>② 2D 缩放矩阵</h3>
+  <p>P' = S(s<sub>x</sub>, s<sub>y</sub>) · P（以原点为参考点）</p>
+  <pre><code>         | sx  0  0 |
+S(sx,sy)= | 0  sy  0 |
+         | 0   0  1 |</code></pre>
+  <ul>
+    <li><strong>均匀缩放（Uniform）：</strong> s<sub>x</sub> = s<sub>y</sub>，形状比例不变</li>
+    <li><strong>非均匀缩放（Non-uniform）：</strong> s<sub>x</sub> ≠ s<sub>y</sub>，产生拉伸/压缩</li>
+  </ul>
+  <p><strong>逆矩阵：</strong> S<sup>−1</sup>(s<sub>x</sub>, s<sub>y</sub>) = S(1/s<sub>x</sub>, 1/s<sub>y</sub>)</p>
+
+  <h3>③ 2D 缩放 —— 以任意固定点 (x<sub>f</sub>, y<sub>f</sub>) 为参考点</h3>
+  <p>三步技巧：平移 → 缩放 → 平移回</p>
+  <pre><code>P' = T(xf, yf) · S(sx, sy) · T(-xf, -yf) · P
+
+个矩阵：
+         | 1  0  xf |       | sx  0  0 |       | 1  0  -xf |
+    M =  | 0  1  yf |  ×    | 0  sy  0 |  ×    | 0  1  -yf |
+         | 0  0  1  |       | 0   0  1 |       | 0  0   1  |</code></pre>
+  <p>直接公式：x' = x<sub>f</sub> + s<sub>x</sub>(x − x<sub>f</sub>)，y' = y<sub>f</sub> + s<sub>y</sub>(y − y<sub>f</sub>)</p>
+
+  <h3>④ 2D 旋转矩阵（绕原点，逆时针为正）</h3>
+  <p>P' = R(θ) · P</p>
+  <pre><code>        | cosθ  -sinθ  0 |
+R(θ) =  | sinθ   cosθ  0 |
+        |  0      0    1 |</code></pre>
+  <p>推导公式：x' = x·cosθ − y·sinθ，y' = x·sinθ + y·cosθ</p>
+  <p><strong>逆矩阵：</strong> R<sup>−1</sup>(θ) = R(−θ) = R<sup>T</sup>(θ)（旋转矩阵是正交矩阵）</p>
+
+  <div class="formula">
+    <strong>以任意旋转中心 (x<sub>r</sub>, y<sub>r</sub>) 旋转（三步技巧）：</strong><br>
+    P' = T(x<sub>r</sub>, y<sub>r</sub>) · R(θ) · T(−x<sub>r</sub>, −y<sub>r</sub>) · P
+  </div>
+
+  <h3>⑤ 2D 剪切矩阵</h3>
+  <div class="grid-2">
+    <div>
+      <p><strong>水平剪切（x-shearing）：</strong> x' = x + λ<sub>x</sub>·y，y' = y</p>
+      <pre><code>           | 1  λx  0 |
+Shx(λx) =  | 0   1  0 |
+           | 0   0  1 |</code></pre>
+    </div>
+    <div>
+      <p><strong>垂直剪切（y-shearing）：</strong> x' = x，y' = y + λ<sub>y</sub>·x</p>
+      <pre><code>           | 1   0  0 |
+Shy(λy) =  | λy  1  0 |
+           | 0   0  1 |</code></pre>
+    </div>
+  </div>
+  <p><strong>逆矩阵：</strong> Sh<sup>−1</sup>(λ) = Sh(−λ)</p>
+
+  <div class="warn">
+    <strong>⚠️ 剪切矩阵行列位置陷阱：</strong> 水平剪切中 λ<sub>x</sub> 在 (1,2) 位置（第一行第二列），垂直剪切中 λ<sub>y</sub> 在 (2,1) 位置（第二行第一列）。考试常见陷阱：搞反行列位置。
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 4: 3D 变换矩阵大全 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="3d-transforms">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>3D 变换矩阵大全</h2>
+        <p class="lead">4×4 齐次形式 —— 特别注意 R<sub>y</sub> 的 sinθ 是最大陷阱</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 矩阵默写 + 陷阱</span>
+  </div>
+
+  <h3>① 3D 平移矩阵</h3>
+  <pre><code>               | 1  0  0  tx |
+T(tx,ty,tz) =  | 0  1  0  ty |
+               | 0  0  1  tz |
+               | 0  0  0  1  |</code></pre>
+  <p>逆矩阵：T<sup>−1</sup>(t<sub>x</sub>, t<sub>y</sub>, t<sub>z</sub>) = T(−t<sub>x</sub>, −t<sub>y</sub>, −t<sub>z</sub>)</p>
+
+  <h3>② 3D 缩放矩阵（以原点为参考）</h3>
+  <pre><code>                  | sx  0   0   0 |
+S(sx, sy, sz) =   | 0  sy   0   0 |
+                  | 0   0   sz  0 |
+                  | 0   0   0   1 |</code></pre>
+  <p>以任意固定点缩放（三步技巧）：P' = T(P<sub>f</sub>) · S(s<sub>x</sub>, s<sub>y</sub>, s<sub>z</sub>) · T(−P<sub>f</sub>) · P</p>
+  <p>逆矩阵：S<sup>−1</sup>(s<sub>x</sub>, s<sub>y</sub>, s<sub>z</sub>) = S(1/s<sub>x</sub>, 1/s<sub>y</sub>, 1/s<sub>z</sub>)</p>
+
+  <h3>③ 3D 绕 X 轴旋转 R<sub>x</sub>(θ)</h3>
+  <p>CCW when looking along <strong>+x</strong> toward origin. x 坐标不变，旋转在 y−z 平面。</p>
+  <pre><code>           | 1    0      0    0 |
+Rx(θ) =    | 0  cosθ  -sinθ  0 |
+           | 0  sinθ   cosθ  0 |
+           | 0    0      0    1 |</code></pre>
+  <p>推导：y' = y·cosθ − z·sinθ，z' = y·sinθ + z·cosθ</p>
+
+  <h3>④ 3D 绕 Y 轴旋转 R<sub>y</sub>(θ) —— ⚠️ 最大陷阱！</h3>
+  <p>CCW when looking along <strong>+y</strong> toward origin. y 坐标不变，旋转在 z−x 平面。</p>
+  <pre><code>           |  cosθ  0  sinθ  0 |
+Ry(θ) =    |   0    1    0   0 |
+           | -sinθ  0  cosθ  0 |    ← ⚠️ -sinθ 在 (3,1) 位置！
+           |   0    0    0   1 |</code></pre>
+
+  <div class="exam">
+    <strong>🚫 R<sub>y</sub> 的 sinθ 符号陷阱 —— 最常出错的矩阵！</strong><br><br>
+    <strong>与 R<sub>x</sub>、R<sub>z</sub> 的对比：</strong>
+    <table>
+      <thead><tr><th>旋转轴</th><th>旋转平面</th><th>−sinθ 位置</th><th>+sinθ 位置</th></tr></thead>
+      <tbody>
+        <tr><td>R<sub>x</sub>(θ)</td><td>y−z 平面</td><td>第 2 行第 3 列 (2,3)</td><td>第 3 行第 2 列 (3,2)</td></tr>
+        <tr style="background:#fef2f2"><td><strong>R<sub>y</sub>(θ)</strong></td><td><strong>z−x 平面</strong></td><td><strong>第 3 行第 1 列 (3,1)</strong></td><td><strong>第 1 行第 3 列 (1,3)</strong></td></tr>
+        <tr><td>R<sub>z</sub>(θ)</td><td>x−y 平面</td><td>第 1 行第 2 列 (1,2)</td><td>第 2 行第 1 列 (2,1)</td></tr>
+      </tbody>
+    </table>
+    <br>
+    <strong>为什么 R<sub>y</sub> 符号不同？</strong> 绕 y 轴旋转时，y 坐标不变，旋转发生在 z−x 平面：x' = x·cosθ + z·sinθ，z' = −x·sinθ + z·cosθ。按列向量顺序 (x, y, z) 写成矩阵时，+sinθ 在第一行第三列 (1,3)，−sinθ 在第三行第一列 (3,1)。这正是考试最容易写反的位置。
+  </div>
+
+  <div class="note">
+    <strong>📌 记忆口诀：</strong> "R<sub>y</sub> 反着来"——与 R<sub>x</sub>、R<sub>z</sub> 的对角线两侧符号模式不同，−sinθ 在 (3,1)，+sinθ 在 (1,3)。对比 R<sub>x</sub> 的 −sinθ 在 (2,3)，R<sub>z</sub> 的 −sinθ 在 (1,2)。
+  </div>
+
+  <h3>⑤ 3D 绕 Z 轴旋转 R<sub>z</sub>(θ)</h3>
+  <p>CCW when looking along <strong>+z</strong> toward origin. z 坐标不变，旋转在 x−y 平面（与 2D 旋转等价）。</p>
+  <pre><code>           | cosθ  -sinθ  0  0 |
+Rz(θ) =    | sinθ   cosθ  0  0 |
+           |  0      0    1  0 |
+           |  0      0    0  1 |</code></pre>
+
+  <h3>三个旋转矩阵可视化对比</h3>
+  <table>
+    <thead><tr><th></th><th>R<sub>x</sub>(θ)</th><th>R<sub>y</sub>(θ) ⚠️</th><th>R<sub>z</sub>(θ)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>不变坐标</td><td>x</td><td>y</td><td>z</td>
+      </tr>
+      <tr>
+        <td>旋转平面</td><td>y−z</td><td>z−x</td><td>x−y</td>
+      </tr>
+      <tr>
+        <td>−sinθ 位置</td><td>(2,3)</td><td style="color:var(--red);font-weight:800">(3,1)</td><td>(1,2)</td>
+      </tr>
+      <tr>
+        <td>+sinθ 位置</td><td>(3,2)</td><td style="color:var(--red);font-weight:800">(1,3)</td><td>(2,1)</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 5: 变换顺序规则 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="transform-order">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>变换顺序规则</h2>
+        <p class="lead">矩阵右乘：从右到左施加，先做的变换写在右边</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 最高频错误</span>
+  </div>
+
+  <div class="formula">
+    <strong>矩阵右乘规则：</strong><br>
+    P' = M<sub>n</sub> · M<sub>n−1</sub> · ... · M<sub>2</sub> · M<sub>1</sub> · P<br><br>
+    M<sub>1</sub> <strong>最先</strong>执行（在最右边），M<sub>n</sub> <strong>最后</strong>执行（在最左边）
+  </div>
+
+  <div class="note">
+    <strong>📌 记忆口诀："先做的变换矩阵写在右边"</strong><br><br>
+    例：先平移再旋转 → 平移矩阵放右边 → P' = R(θ) · T(tx, ty) · P<br>
+    执行顺序：① T(tx, ty)（平移） ② R(θ)（旋转）
+  </div>
+
+  <h3>矩阵乘法交换律</h3>
+  <table>
+    <thead><tr><th>情况</th><th>可交换？</th><th>例子</th></tr></thead>
+    <tbody>
+      <tr><td>一般情况</td><td>❌ AB ≠ BA</td><td>先平移再旋转 ≠ 先旋转再平移</td></tr>
+      <tr><td>两个相同类型</td><td>✅ 可以</td><td>两次纯平移 T<sub>1</sub>·T<sub>2</sub> = T<sub>2</sub>·T<sub>1</sub></td></tr>
+      <tr><td>两个同轴旋转</td><td>✅ 可以</td><td>R<sub>z</sub>(θ<sub>1</sub>)·R<sub>z</sub>(θ<sub>2</sub>) = R<sub>z</sub>(θ<sub>2</sub>)·R<sub>z</sub>(θ<sub>1</sub>)</td></tr>
+      <tr><td>均匀缩放 + 旋转</td><td>✅ 可以</td><td>S(s,s)·R(θ) = R(θ)·S(s,s) （均匀缩放）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="exam">
+    <strong>🚫 最常犯的错误：</strong><br>
+    题目说"先旋转再平移"→ 写 P' = R · T · P？<br>
+    <strong>错！</strong> 先旋转再平移的意思是：先施加旋转，再施加平移。<br>
+    "先旋转" → R 最先作用 → R 在最右边 → P' = <strong>T · R</strong> · P（不是 R · T · P！）
+  </div>
+
+  <div class="warn">
+    <strong>⚠️ 检查方法：</strong> 读题时在心里模拟：<br>
+    "对点 P 先做 A 再做 B" → P' = B · A · P（A 在右边，先施加；B 在左边，后施加）<br>
+    如果写成 A · B · P，顺序就反了！
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 6: 绕任意轴旋转三步技巧 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="arbitrary-axis">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>绕任意轴旋转 —— 三步技巧</h2>
+        <p class="lead">旋转轴不过原点时的标准解法，每次考试必有变形题</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 大题模板</span>
+  </div>
+
+  <h3>问题描述</h3>
+  <p>给定空间中从点 P<sub>1</sub> 到点 P<sub>2</sub> 的旋转轴，绕该轴旋转 θ 角度。旋转轴可能不过原点、也不平行于坐标轴。</p>
+
+  <h3>通用解法 —— 五步矩阵序列</h3>
+
+  <div class="pipeline">
+    <div class="pipe"><b>Step 1</b><span>平移 T(−P₁)<br>使轴过原点</span></div>
+    <div class="pipe"><b>Step 2</b><span>对齐旋转 R<sub>align</sub><br>轴对齐到坐标轴</span></div>
+    <div class="pipe"><b>Step 3</b><span>执行旋转 R(θ)<br>绕坐标轴旋转</span></div>
+    <div class="pipe"><b>Step 4</b><span>撤销对齐 R<sub>align</sub>⁻¹<br>逆对齐旋转</span></div>
+    <div class="pipe"><b>Step 5</b><span>撤销平移 T(P₁)<br>平移回原位</span></div>
+  </div>
+
+  <div class="formula">
+    <strong>完整矩阵序列（从左到右书写，从右到左施加）：</strong><br>
+    M = T(P<sub>1</sub>) · R<sub>align</sub><sup>−1</sup> · R(θ) · R<sub>align</sub> · T(−P<sub>1</sub>)
+  </div>
+
+  <h3>常见简化情况</h3>
+  <table>
+    <thead><tr><th>场景</th><th>所需步骤</th><th>完整矩阵</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>轴过原点，平行于 x 轴</td>
+        <td>仅 Step 3</td>
+        <td>M = R<sub>x</sub>(θ)</td>
+      </tr>
+      <tr>
+        <td>轴不过原点，但平行于 x 轴</td>
+        <td>Step 1 + 3 + 5</td>
+        <td>M = T(P<sub>1</sub>) · R<sub>x</sub>(θ) · T(−P<sub>1</sub>)</td>
+      </tr>
+      <tr>
+        <td>轴不过原点，不平行于坐标轴</td>
+        <td>全部 5 步</td>
+        <td>M = T(P<sub>1</sub>) · R<sub>align</sub><sup>−1</sup> · R(θ) · R<sub>align</sub> · T(−P<sub>1</sub>)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>讲义例题：绕从 (0,1,1) 到 (2,1,1) 的轴旋转 90°</h3>
+
+  <div class="note">
+    <strong>解题步骤：</strong><br>
+    ① 轴方向向量 = (2,1,1) − (0,1,1) = <strong>(2, 0, 0)</strong> → 平行于 x 轴<br>
+    ② 轴不过原点（过 y=1, z=1），需要平移<br>
+    ③ 轴已平行 x 轴，跳过对齐步骤<br>
+    ④ 完整矩阵：M = T(0,1,1) · R<sub>x</sub>(90°) · T(0,−1,−1)
+  </div>
+
+  <pre><code>M = T(0,1,1) × Rx(90°) × T(0,-1,-1)
+
+   | 1  0  0  0 |   | 1   0   0   0 |   | 1  0  0   0 |
+ = | 0  1  0  1 | × | 0   0  -1   0 | × | 0  1  0  -1 |
+   | 0  0  1  1 |   | 0   1   0   0 |   | 0  0  1  -1 |
+   | 0  0  0  1 |   | 0   0   0   1 |   | 0  0  0   1 |</code></pre>
+
+  <div class="warn">
+    <strong>⚠️ 不要只背原题！</strong> 期中 Q3 已考过轴平行于 x 轴的情况。复习时要准备 <strong>不同轴和角度</strong> 的变形——可能轴不平行坐标轴（需要五步全用），或旋转角度不同（如 60°、120° 等特殊角）。
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 7: 逆变换 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="inverse">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>逆变换求法总结</h2>
+        <p class="lead">每种变换矩阵的逆——旋转矩阵的逆 = 转置是核心技巧</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 快速求逆</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>变换类型</th><th>逆矩阵求法</th><th>结果</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>平移 T(t<sub>x</sub>, t<sub>y</sub>, t<sub>z</sub>)</td>
+        <td>取反平移距离</td>
+        <td>T(−t<sub>x</sub>, −t<sub>y</sub>, −t<sub>z</sub>)</td>
+      </tr>
+      <tr>
+        <td>旋转 R(θ)</td>
+        <td>取反角度 = 取转置（正交矩阵）</td>
+        <td>R(−θ) = R<sup>T</sup>(θ)</td>
+      </tr>
+      <tr>
+        <td>缩放 S(s<sub>x</sub>, s<sub>y</sub>, s<sub>z</sub>)</td>
+        <td>取缩放因子的倒数</td>
+        <td>S(1/s<sub>x</sub>, 1/s<sub>y</sub>, 1/s<sub>z</sub>)</td>
+      </tr>
+      <tr>
+        <td>剪切 Sh(λ)</td>
+        <td>取反剪切因子</td>
+        <td>Sh(−λ)</td>
+      </tr>
+      <tr>
+        <td>复合变换 M = M<sub>n</sub>···M<sub>1</sub></td>
+        <td>逐个求逆并逆序</td>
+        <td>M<sup>−1</sup> = M<sub>1</sub><sup>−1</sup> · M<sub>2</sub><sup>−1</sup> · ... · M<sub>n</sub><sup>−1</sup></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>📌 核心技巧：旋转矩阵是正交矩阵，R<sup>−1</sup> = R<sup>T</sup>。</strong> 这意味着求逆旋转矩阵时，不需要计算逆矩阵——直接把 sinθ 的符号取反即可（因为 R(−θ) 的 sin 项取反，cos 项不变）。这是考试中快速求逆的关键。
+  </div>
+
+  <div class="exam">
+    <strong>🚫 复合变换求逆的陷阱：</strong> 顺序要反过来！<br>
+    若 M = A · B · C，则 M<sup>−1</sup> = C<sup>−1</sup> · B<sup>−1</sup> · A<sup>−1</sup>，<strong>不是</strong> A<sup>−1</sup> · B<sup>−1</sup> · C<sup>−1</sup>。
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 8: 复合变换解题实战 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="composite">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">7</div>
+      <div>
+        <h2>复合变换解题实战</h2>
+        <p class="lead">期中考 Q3 和 Q10 的完整解题过程——期末变形题的母题</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 手算真题</span>
+  </div>
+
+  <h3>Q3：3D 复合变换矩阵顺序 [12 points]</h3>
+
+  <div class="note">
+    <strong>题目：</strong> 一个 3D 物体绕从 (−1, 2, 1) 到 (1, 2, 1) 的轴旋转 90°，然后相对于原点沿 x, y, z 做非均匀缩放 (2, 3, 4)。写出完整的矩阵序列。
+  </div>
+
+  <h3>解题过程</h3>
+  <p><strong>Step 1 — 分析旋转轴：</strong> 方向向量 = (1,2,1) − (−1,2,1) = <strong>(2, 0, 0)</strong>，平行于 x 轴，但不过原点（经过 y=2, z=1）。</p>
+
+  <p><strong>Step 2 — 确定变换顺序（先做的写在右边）：</strong></p>
+  <div class="formula">
+    M = S(2, 3, 4) · T(0, 2, 1) · R<sub>x</sub>(90°) · T(0, −2, −1)
+  </div>
+
+  <p>执行顺序（从右到左）：① 平移至原点 → ② 绕 x 轴旋转 → ③ 平移回 → ④ 缩放</p>
+
+  <h3>四个矩阵完整写法：</h3>
+
+  <p><strong>① T(0, −2, −1) —— 平移至原点：</strong></p>
+  <pre><code>              | 1  0  0   0 |
+T(0,-2,-1) =  | 0  1  0  -2 |
+              | 0  0  1  -1 |
+              | 0  0  0   1 |</code></pre>
+
+  <p><strong>② R<sub>x</sub>(90°) —— 绕 x 轴旋转 90°（cos 90°=0, sin 90°=1）：</strong></p>
+  <pre><code>           | 1   0   0   0 |
+Rx(90°) =  | 0   0  -1   0 |
+           | 0   1   0   0 |
+           | 0   0   0   1 |</code></pre>
+
+  <p><strong>③ T(0, 2, 1) —— 平移回原位：</strong></p>
+  <pre><code>           | 1  0  0  0 |
+T(0,2,1) = | 0  1  0  2 |
+           | 0  0  1  1 |
+           | 0  0  0  1 |</code></pre>
+
+  <p><strong>④ S(2, 3, 4) —— 非均匀缩放（相对原点）：</strong></p>
+  <pre><code>           | 2  0  0  0 |
+S(2,3,4) = | 0  3  0  0 |
+           | 0  0  4  0 |
+           | 0  0  0  1 |</code></pre>
+
+  <div class="warn">
+    <strong>⚠️ 关键细节：</strong> 缩放 S(2,3,4) 相对于原点执行，在旋转回原位<strong>之后</strong>（不在三步内部）。因为题目说"then scaled relative to the origin"——旋转完成之后再做缩放。
+  </div>
+
+  <hr style="margin:32px 0;border-color:var(--border2)">
+
+  <h3>Q10：2D 仿射变换矩阵的分解 [10 points]</h3>
+
+  <div class="note">
+    <strong>题目：</strong> 给定 2D 仿射变换矩阵 M，画出变换后的图形并标注顶点坐标。
+  </div>
+
+  <pre><code>     |  0   1   2 |
+M =  | -1   0   1 |
+     |  0   0   1 |</code></pre>
+
+  <h3>矩阵分解：</h3>
+  <p>先看左上角 2×2 子矩阵是否为正交矩阵：验证 |0 1; −1 0| 是旋转矩阵 R(−90°)（顺时针 90°）。最后一列 [2, 1]<sup>T</sup> 是平移分量。</p>
+
+  <div class="formula">
+    <strong>分解结果：</strong> M = T(2, 1) · R(−90°)<br><br>
+    即：先绕原点顺时针旋转 90°，再沿 x 平移 2、沿 y 平移 1。
+  </div>
+
+  <pre><code>验证：T(2,1) × R(-90°)
+| 1  0  2 |   |  0  1  0 |   |  0  1  2 |
+| 0  1  1 | × | -1  0  0 | = | -1  0  1 | = M ✓
+| 0  0  1 |   |  0  0  1 |   |  0  0  1 |</code></pre>
+
+  <h3>直接变换公式：</h3>
+  <div class="formula">
+    (x, y) → (y + 2, −x + 1)
+  </div>
+
+  <h3>顶点坐标计算：</h3>
+  <table>
+    <thead><tr><th>原顶点</th><th>计算</th><th>变换后</th></tr></thead>
+    <tbody>
+      <tr><td>(0, 0)</td><td>(0+2, −0+1)</td><td><strong>(2, 1)</strong></td></tr>
+      <tr><td>(1, 0)</td><td>(0+2, −1+1)</td><td><strong>(2, 0)</strong></td></tr>
+      <tr><td>(0, 1)</td><td>(1+2, −0+1)</td><td><strong>(3, 1)</strong></td></tr>
+      <tr><td>(1, 1)</td><td>(1+2, −1+1)</td><td><strong>(3, 0)</strong></td></tr>
+      <tr><td>(0.5, 2) ← 屋顶</td><td>(2+2, −0.5+1)</td><td><strong>(4, 0.5)</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>📌 期末变形方向：</strong> 这类题非常高频，矩阵数值可能不同。关键能力：① 看左上角 2×2 子矩阵识别旋转（正交性验证）；② 看最后一列识别平移；③ 用变换公式 (x,y) → (ax+by+tx, cx+dy+ty) 计算所有顶点。
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 9: 考场答案模板 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div><h2>考场答案模板</h2></div>
+    </div>
+  </div>
+
+  <div class="mini-title">闭卷计算总流程：先定约定，再排矩阵，再验算</div>
+  <div class="answer-box">
+    <p><strong>适用范围：</strong>M03 的所有矩阵题，尤其是两道 transformation calculation questions。</p>
+    <p>① <strong>写列向量约定：</strong>点写成齐次列向量，复合矩阵从右到左作用。</p>
+    <p>② <strong>拆动作：</strong>把题目文字拆成基本变换：Translate / Scale / Rotate / Shear。</p>
+    <p>③ <strong>处理固定点或固定轴：</strong>不是绕原点时，先 T(-fixed point)，执行变换，再 T(fixed point)。</p>
+    <p>④ <strong>排矩阵顺序：</strong>题目说"先 A 再 B"时，最终矩阵写成 M = B · A。</p>
+    <p>⑤ <strong>写完整矩阵但不要急着相乘：</strong>考试常要求列矩阵组合；先拿顺序分，再按要求计算顶点。</p>
+    <p>⑥ <strong>验算一个不变量：</strong>固定点应保持不变；绕某轴旋转时轴上点不变；纯旋转不改变长度。</p>
+  </div>
+
+  <div class="mini-title">题型 1：绕任意轴旋转三步技巧（M03 最高频大题）</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong> "Write the transformation matrices for rotating about an arbitrary axis passing from P₁ to P₂"</p>
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>算方向向量：</strong> d = P₂ − P₁，判断是否平行于坐标轴</p>
+    <p>② <strong>前提判断：</strong> 轴是否过原点？若不过原点，先平移 T(−P₁)</p>
+    <p>③ <strong>若轴不平行于坐标轴：</strong> 用 R<sub>align</sub> 对齐</p>
+    <p>④ <strong>执行旋转：</strong> 绕坐标轴旋转 R(θ)</p>
+    <p>⑤ <strong>逆操作：</strong> 撤销对齐 R<sub>align</sub><sup>−1</sup>，撤销平移 T(P₁)</p>
+    <p><strong>完整矩阵序列：</strong> M = T(P₁) · R<sub>align</sub><sup>−1</sup> · R(θ) · R<sub>align</sub> · T(−P₁)</p>
+    <p>⑥ <strong>⚠️ 检查 R<sub>y</sub> 的 sinθ 符号！</strong> −sinθ 在 (3,1) 位置，与其他两轴不同。</p>
+  </div>
+
+  <div class="mini-title">题型 2：以任意点为中心的缩放/旋转</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong> "Scale/Rotate about an arbitrary fixed point (x<sub>f</sub>, y<sub>f</sub>)"</p>
+    <p><strong>答案框架（三步技巧）：</strong></p>
+    <p>① <strong>平移至原点：</strong> T(−x<sub>f</sub>, −y<sub>f</sub>)</p>
+    <p>② <strong>执行变换：</strong> S(s<sub>x</sub>, s<sub>y</sub>) 或 R(θ)</p>
+    <p>③ <strong>平移回：</strong> T(x<sub>f</sub>, y<sub>f</sub>)</p>
+    <p><strong>完整矩阵：</strong> M = T(x<sub>f</sub>, y<sub>f</sub>) · <em>Transform</em> · T(−x<sub>f</sub>, −y<sub>f</sub>)</p>
+    <p><strong>验算：</strong> 将固定点代入应不变——(x<sub>f</sub>, y<sub>f</sub>) 经变换后还是 (x<sub>f</sub>, y<sub>f</sub>)。</p>
+  </div>
+
+  <div class="mini-title">题型 3：矩阵分解 —— 识别变换类型</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong> 给定 3×3 或 4×4 矩阵，分解出每个变换步骤</p>
+    <p><strong>分解步骤：</strong></p>
+    <p>① <strong>看最后一列：</strong> 是否有平移分量？（齐次坐标的最后一列前 n 个元素）</p>
+    <p>② <strong>看左上角子矩阵：</strong> 2×2（2D）或 3×3（3D），是否为正交矩阵？（行向量互相正交且模长为 1 → 纯旋转；模长 ≠ 1 → 含缩放）</p>
+    <p>③ <strong>分离缩放：</strong> 各行向量的模长 = 该方向的缩放因子</p>
+    <p>④ <strong>归一化后识别旋转：</strong> 将左上角每行除以缩放因子，得到纯旋转矩阵，识别角度和旋转轴</p>
+    <p>⑤ <strong>写出分解：</strong> M = T(tx, ty) · S(sx, sy) · R(θ)（按从右到左执行顺序排列）</p>
+  </div>
+
+  <div class="mini-title">题型 4：变换顺序比较</div>
+  <div class="answer-box">
+    <p><strong>适用题型：</strong> "先 A 再 B" vs "先 B 再 A"，结果是否相同？</p>
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>写出两个矩阵序列：</strong> 先 A 再 B → M = B·A；先 B 再 A → M = A·B</p>
+    <p>② <strong>判断：</strong> 矩阵乘法一般不满足交换律 → 结果不同</p>
+    <p>③ <strong>例外：</strong> 两个同类型变换可交换（两次平移、两次同轴旋转、均匀缩放+旋转）</p>
+    <p>④ <strong>举例计算：</strong> 用具体点代入两个矩阵序列，算出不同结果作为证据。</p>
+  </div>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 10: 自测题 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div><h2>自测题</h2></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>P3-1【计算题】以任意点为中心的 2D 缩放</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong> 一个 2D 三角形顶点为 (0,0)、(2,0)、(1,2)。以点 (1, 1) 为固定点，沿 x 方向缩放 s<sub>x</sub> = 3，沿 y 方向缩放 s<sub>y</sub> = 2。写出完整的变换矩阵组合，并计算变换后的三个顶点坐标。</p>
+
+      <h3>参考答案：</h3>
+      <p><strong>变换矩阵组合（三步技巧）：</strong> P' = T(1,1) · S(3,2) · T(−1,−1) · P</p>
+
+      <pre><code>T(-1,-1) =        S(3,2) =        T(1,1) =
+| 1  0 -1 |      | 3  0  0 |      | 1  0  1 |
+| 0  1 -1 |      | 0  2  0 |      | 0  1  1 |
+| 0  0  1 |      | 0  0  1 |      | 0  0  1 |</code></pre>
+
+      <p><strong>直接公式：</strong> x' = 1 + 3(x − 1) = 3x − 2，y' = 1 + 2(y − 1) = 2y − 1</p>
+
+      <table>
+        <thead><tr><th>原顶点</th><th>x' = 3x − 2</th><th>y' = 2y − 1</th><th>变换后</th></tr></thead>
+        <tbody>
+          <tr><td>(0, 0)</td><td>−2</td><td>−1</td><td><strong>(−2, −1)</strong></td></tr>
+          <tr><td>(2, 0)</td><td>4</td><td>−1</td><td><strong>(4, −1)</strong></td></tr>
+          <tr><td>(1, 2)</td><td>1</td><td>3</td><td><strong>(1, 3)</strong></td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>验算：</strong> 固定点 (1,1)：x' = 3(1) − 2 = 1，y' = 2(1) − 1 = 1 ✓（固定点不变）</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P3-2【计算题】3D 绕 y 轴旋转矩阵 —— 注意 sinθ 符号陷阱</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong> 写出绕 y 轴旋转 θ 角的完整 4×4 齐次坐标旋转矩阵，并说明其 sinθ 项的位置为何与 R<sub>x</sub>、R<sub>z</sub> 不同。</p>
+
+      <h3>参考答案：</h3>
+      <pre><code>           |  cosθ  0  sinθ  0 |
+Ry(θ) =    |   0    1    0   0 |
+           | -sinθ  0  cosθ  0 |
+           |   0    0    0   1 |</code></pre>
+
+      <p><strong>为何 sinθ 符号不同：</strong></p>
+      <p>绕 y 轴旋转时，y 坐标不变，旋转发生在 z−x 平面：z' = z·cosθ − x·sinθ，x' = z·sinθ + x·cosθ。</p>
+      <p>按行列顺序 (x, y, z) 排列时，−sinθ 出现在 <strong>第三行第一列 (3,1)</strong>，+sinθ 出现在 <strong>第一行第三列 (1,3)</strong>。这与 R<sub>x</sub>（−sinθ 在 2,3）和 R<sub>z</sub>（−sinθ 在 1,2）的模式不同，是右手坐标系循环顺序 (x→y→z→x) 的必然结果。</p>
+
+      <table>
+        <thead><tr><th>旋转轴</th><th>旋转平面</th><th>−sinθ 位置</th><th>+sinθ 位置</th></tr></thead>
+        <tbody>
+          <tr><td>R<sub>x</sub>(θ)</td><td>y−z</td><td>(2,3)</td><td>(3,2)</td></tr>
+          <tr style="background:#fef2f2"><td><strong>R<sub>y</sub>(θ)</strong></td><td><strong>z−x</strong></td><td><strong>(3,1)</strong></td><td><strong>(1,3)</strong></td></tr>
+          <tr><td>R<sub>z</sub>(θ)</td><td>x−y</td><td>(1,2)</td><td>(2,1)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>P3-3【计算题】变换顺序对结果的影响</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong> 对同一个点 P = (1, 0, 0, 1)<sup>T</sup>，分别计算以下两种变换顺序的结果，并说明为何顺序影响结果：</p>
+      <ul>
+        <li>顺序 A：先绕 z 轴旋转 90°，再沿 x 方向平移 2</li>
+        <li>顺序 B：先沿 x 方向平移 2，再绕 z 轴旋转 90°</li>
+      </ul>
+
+      <h3>参考答案：</h3>
+      <pre><code>Rz(90°) =           T(2,0,0) =
+| 0 -1  0  0 |      | 1  0  0  2 |
+| 1  0  0  0 |      | 0  1  0  0 |
+| 0  0  1  0 |      | 0  0  1  0 |
+| 0  0  0  1 |      | 0  0  0  1 |</code></pre>
+
+      <p><strong>顺序 A（先旋转再平移）：</strong> P' = T(2,0,0) · R<sub>z</sub>(90°) · P</p>
+      <p>R<sub>z</sub>(90°) · [1,0,0,1]<sup>T</sup> = [0,1,0,1]<sup>T</sup></p>
+      <p>T(2,0,0) · [0,1,0,1]<sup>T</sup> = [2,1,0,1]<sup>T</sup> ⇒ <strong>(2, 1, 0)</strong></p>
+
+      <p><strong>顺序 B（先平移再旋转）：</strong> P' = R<sub>z</sub>(90°) · T(2,0,0) · P</p>
+      <p>T(2,0,0) · [1,0,0,1]<sup>T</sup> = [3,0,0,1]<sup>T</sup></p>
+      <p>R<sub>z</sub>(90°) · [3,0,0,1]<sup>T</sup> = [0,3,0,1]<sup>T</sup> ⇒ <strong>(0, 3, 0)</strong></p>
+
+      <p><strong>结果不同：</strong> (2, 1, 0) ≠ (0, 3, 0)，因为矩阵乘法不满足交换律（T·R ≠ R·T）。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P3-4【理解+分析题】矩阵分解：识别 3D 变换类型</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong> 以下 3D 变换矩阵 M 表示了什么操作？请完整分解并描述每一步变换。</p>
+
+      <pre><code>     | 1  0   0  0 |
+M =  | 0  0  -2  0 |
+     | 0  3   0  0 |
+     | 0  0   0  1 |</code></pre>
+
+      <h3>参考答案：</h3>
+      <p><strong>分解过程：</strong></p>
+      <p>① 最后一列为 [0,0,0,1]<sup>T</sup> → 无平移分量。</p>
+      <p>② 左上角 3×3 子矩阵：行向量模长——第 1 行 |(1,0,0)| = 1；第 2 行 |(0,0,−2)| = 2；第 3 行 |(0,3,0)| = 3。</p>
+      <p>③ 缩放因子：s<sub>x</sub> = 1，s<sub>y</sub> = 2，s<sub>z</sub> = 3。</p>
+      <p>④ 归一化后：第 1 行 (1,0,0)，第 2 行 (0,0,−1)，第 3 行 (0,1,0) → 这是 R<sub>x</sub>(90°) 的左上角。</p>
+
+      <div class="formula">
+        <strong>分解结果：</strong> M = S(1, 2, 3) · R<sub>x</sub>(90°)<br>
+        即：先绕 x 轴旋转 90°，再进行非均匀缩放（x 方向 ×1，y 方向 ×2，z 方向 ×3）。
+      </div>
+
+      <pre><code>验证 S(1,2,3) × Rx(90°)：
+| 1  0  0  0 |   | 1  0  0  0 |   | 1  0   0  0 |
+| 0  2  0  0 | × | 0  0 -1  0 | = | 0  0  -2  0 | = M ✓
+| 0  0  3  0 |   | 0  1  0  0 |   | 0  3   0  0 |
+| 0  0  0  1 |   | 0  0  0  1 |   | 0  0   0  1 |</code></pre>
+
+      <p><strong>关键技巧：</strong> 判断执行顺序——"先旋转再缩放"→ R 在右边，S 在左边 → M = S · R。这与考试 Q3 中"先旋转再缩放"的矩阵排列逻辑一致。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P3-5【计算题】绕不过原点的 z 轴平行轴旋转</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong>点 P = (3, 1, 0, 1)<sup>T</sup> 绕过 A = (1, 1, 0) 且平行于 z 轴的直线逆时针旋转 90°。写出矩阵组合并计算 P'。</p>
+      <h3>参考答案：</h3>
+      <p><strong>矩阵组合：</strong>P' = T(1,1,0) · R<sub>z</sub>(90°) · T(-1,-1,0) · P</p>
+      <p><strong>计算：</strong>先平移到轴心：P - A = (2,0,0)。绕 z 轴 90° 得 (0,2,0)。平移回 A 得 P' = (1,3,0)。</p>
+      <p><strong>验算：</strong>A 在旋转轴上，应保持不变。T(1,1,0) · R<sub>z</sub>(90°) · T(-1,-1,0) · A = A。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P3-6【闭卷检查】给出文字顺序，写最终矩阵顺序</summary>
+    <div class="detail-body">
+      <p><strong>题目：</strong>对物体先绕 y 轴旋转 θ，再以原点为中心做非均匀缩放 S(2,1,3)，最后沿 x 方向平移 5。写最终复合矩阵 M。</p>
+      <h3>参考答案：</h3>
+      <p><strong>从右到左作用：</strong>先旋转，再缩放，再平移，所以 M = T(5,0,0) · S(2,1,3) · R<sub>y</sub>(θ)。</p>
+      <p><strong>关键陷阱：</strong>不要写成 R<sub>y</sub> · S · T。列向量约定下，最先执行的变换放在最右边。</p>
+      <pre><code>           |  cosθ  0  sinθ  0 |
+Ry(θ) =    |   0    1    0   0 |
+           | -sinθ  0  cosθ  0 |
+           |   0    0    0   1 |</code></pre>
+    </div>
+  </details>
+</section>
+
+<!-- ──────────────────────────────── -->
+<!-- Section 11: 最后速记 -->
+<!-- ──────────────────────────────── -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div><h2>最后速记 —— 考前 5 分钟</h2></div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背矩阵 —— 闭卷全默写</p>
+      <ul class="checklist">
+        <li><strong>2D 平移：</strong> [1 0 tx; 0 1 ty; 0 0 1]</li>
+        <li><strong>2D 缩放：</strong> [sx 0 0; 0 sy 0; 0 0 1]</li>
+        <li><strong>2D 旋转：</strong> [cosθ -sinθ 0; sinθ cosθ 0; 0 0 1]</li>
+        <li><strong>2D 水平剪切：</strong> [1 λx 0; 0 1 0; 0 0 1]（λ 在 (1,2)）</li>
+        <li><strong>2D 垂直剪切：</strong> [1 0 0; λy 1 0; 0 0 1]（λ 在 (2,1)）</li>
+        <li><strong>3D 平移：</strong> 最后一列 [tx ty tz 1]<sup>T</sup></li>
+        <li><strong>3D 缩放：</strong> 对角线 [sx sy sz 1]</li>
+        <li><strong>R<sub>x</sub>：</strong> [1 0 0 0; 0 c -s 0; 0 s c 0; 0 0 0 1]</li>
+        <li><strong>R<sub>y</sub>：</strong> [c 0 s 0; 0 1 0 0; <span style="color:var(--red)">-s</span> 0 c 0; 0 0 0 1] ← −s 在 (3,1)!</li>
+        <li><strong>R<sub>z</sub>：</strong> [c -s 0 0; s c 0 0; 0 0 1 0; 0 0 0 1]</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li><strong>三步技巧公式：</strong> M = T(P<sub>f</sub>) · Transform · T(−P<sub>f</sub>)</li>
+        <li><strong>绕任意轴：</strong> M = T(P<sub>1</sub>) · R<sub>align</sub><sup>−1</sup> · R(θ) · R<sub>align</sub> · T(−P<sub>1</sub>)</li>
+        <li><strong>顺序规则：</strong> 先做的变换写在右边 → P' = 后做 · 先做 · P</li>
+        <li><strong>逆矩阵：</strong> 旋转 R<sup>−1</sup> = R<sup>T</sup> = R(−θ)；复合求逆顺序反过来</li>
+        <li><strong>验算技巧：</strong> 固定点代入应不变；正交矩阵验证 RR<sup>T</sup> = I</li>
+        <li><strong>矩阵分解：</strong> 看左上角子矩阵模长得缩放，归一化后得旋转</li>
+        <li><strong>齐次坐标：</strong> 点 w=1，向量 w=0（平移不影响向量）</li>
+        <li><strong>缩放三步：</strong> 平移→缩放→平移回（不是缩放→平移→缩放）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:28px;padding:18px 20px;background:var(--soft);border-radius:12px;text-align:center">
+    <strong style="font-size:16px;color:var(--blue2)">矩阵速查表</strong>
+    <table class="matrix-ref" style="margin-top:12px">
+      <tbody>
+        <tr>
+          <td>平移</td>
+          <td><pre><code>| 1  0  0  tx |
+| 0  1  0  ty |
+| 0  0  1  tz |
+| 0  0  0  1  |</code></pre></td>
+          <td>缩放</td>
+          <td><pre><code>| sx  0   0  0 |
+| 0  sy   0  0 |
+| 0   0  sz  0 |
+| 0   0   0  1 |</code></pre></td>
+        </tr>
+        <tr>
+          <td>R<sub>x</sub>(θ)</td>
+          <td><pre><code>| 1    0      0   0 |
+| 0  cosθ  -sinθ  0 |
+| 0  sinθ   cosθ  0 |
+| 0    0      0   1 |</code></pre></td>
+          <td>R<sub>z</sub>(θ)</td>
+          <td><pre><code>| cosθ  -sinθ  0  0 |
+| sinθ   cosθ  0  0 |
+|   0      0   1  0 |
+|   0      0   0  1 |</code></pre></td>
+        </tr>
+        <tr>
+          <td style="color:var(--red)">R<sub>y</sub>(θ) ⚠️</td>
+          <td style="background:#fef2f2"><pre><code>|  cosθ  0  sinθ  0 |
+|   0    1    0   0 |
+| -sinθ  0  cosθ  0 | ← ⚠️
+|   0    0    0   1 |</code></pre></td>
+          <td>剪切 2D</td>
+          <td><pre><code>Shx: | 1  λx  0 |
+     | 0   1  0 |
+     | 0   0  1 |
+Shy: | 1   0  0 |
+     | λy  1  0 |
+     | 0   0  1 |</code></pre></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · M03 几何变换与矩阵计算 · Semester B 2025/26
+</footer>
+
+</div><!-- .content -->
+</div><!-- .main -->
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

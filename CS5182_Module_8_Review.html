@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M08 · 光线追踪与辐射度</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #667085;
+  --soft: #eef4ff; --blue: #155EEF; --blue2: #003C88;
+  --red: #D7422A; --green: #16803C; --orange: #E86A00; --purple: #6941C6;
+  --border: #d9e2ef; --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08); --radius: 18px; --sidebar: 292px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.72;color:var(--ink);background:radial-gradient(circle at top right,rgba(21,94,239,.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f5f7fb 45%,#f7f8fb 100%);min-height:100vh}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:20px 0;max-width:700px}
+.pipe{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(16,24,40,.04);position:relative}
+.pipe b{font-size:14px;font-weight:800;color:var(--blue2);white-space:nowrap;min-width:100px}
+.pipe span{font-size:13px;color:var(--muted)}
+.pipe::after{content:"↓";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:14px;color:var(--border);font-weight:700;z-index:1}
+.pipe:last-child::after{display:none}
+
+/* grid */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.card{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05)}
+.card h3{font-size:15px;font-weight:800;color:var(--blue2);margin-bottom:8px}
+.card p,.card li{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{border:1px solid var(--border2);padding:10px 14px;text-align:left}
+th{background:var(--soft);font-weight:700;color:var(--blue2);font-size:13px}
+td{color:var(--ink);font-size:13px}
+
+/* mini-title */
+.mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+
+/* details */
+details{margin:12px 0;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+summary{padding:14px 18px;font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,255,255,.93);color:var(--ink)}
+summary:hover{background:var(--soft)}
+.detail-body{padding:16px 18px;border-top:1px solid var(--border2);font-size:14px;background:rgba(255,255,255,.7)}
+
+/* quick / final-recall */
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.quick .mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:8px;border:none}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:6px 0;font-size:13px;color:var(--ink);padding-left:20px;position:relative}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+
+/* formula-inline */
+.formula-inline{font-family:"SFMono-Regular","Consolas","Menlo","Fira Code",monospace;background:rgba(105,65,198,.08);padding:1px 6px;border-radius:4px;font-size:13px}
+
+/* footer */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border2);color:var(--muted);font-size:13px}
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M08 光线追踪与辐射度</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#two-approaches">两种渲染出发点</a>
+    <a class="nav-link" href="#ray-tracing-process">光线追踪完整流程</a>
+    <a class="nav-link" href="#shadows">阴影处理</a>
+    <a class="nav-link" href="#reflection-refraction">反射与折射</a>
+    <a class="nav-link" href="#color">颜色合成公式</a>
+    <a class="nav-link" href="#termination">终止条件</a>
+    <a class="nav-link" href="#acceleration">加速结构</a>
+    <a class="nav-link" href="#advantages">优缺点</a>
+    <a class="nav-link" href="#radiosity">辐射度</a>
+    <a class="nav-link" href="#comparison">三种方案对比</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 8 · CS5182 Final Sprint</div>
+  <h2>光线追踪与辐射度</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计，覆盖光线追踪完整 6 步流程、光追 vs 光栅化 vs 辐射度三方对比、以及辐射度的视点无关特性。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>12</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>5+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>流程描述</b><span>+ 对比 + 计算</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>理解两种不同于光栅化的渲染范式——光线追踪（Pixel-first）和辐射度（能量守恒）——的原理、流程和适用场景。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p><a href="CS5182_Module_7_Review.html">M07 光照模型与着色方法</a>：Phong 公式、阴影概念、反射向量 R = 2(N·L)N - L。</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能默写光线追踪 6 步流程；能对比光追/光栅化/辐射度；能解释辐射度的"视点无关"和 Form Factor。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>⭐ 期末新增（期中未考）！6 步流程描述题；光追 vs 光栅化对比题；辐射度关键词解释题。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong><a href="CS5182_Module_7_Review.html">M07 光照模型与着色方法</a> → <strong>M08 光线追踪与辐射度</strong> → <a href="CS5182_Module_9_Review.html">M09 实时渲染</a>
+  </div>
+</section>
+
+<!-- #roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M08 是期末全新考点，期中完全未涉及</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 预计分值 ~10%</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>本模块在考试中的定位：</strong>M08 是期末<strong>新增范围的核心模块</strong>，期中考了 M01-M07 但完全未涉及光线追踪和辐射度。按照 Revision_5182.pdf 考点清单，M08 约占期末 ~10% 的分值，主打<strong>流程描述题</strong>和<strong>概念对比题</strong>。
+  </div>
+
+  <p>核心考察点：</p>
+  <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>光线追踪 6 步流程</strong>：Primary Ray → 求交 → Shadow Ray → 反射 → 折射 → 颜色合成（必考流程描述）</li>
+    <li><strong>光追 vs 光栅化的本质区别</strong>：Geometry-first vs Pixel-first</li>
+    <li><strong>光追的自然优势</strong>：阴影、反射、折射由算法结构自然处理，无需额外算法</li>
+    <li><strong>光追的加速方法</strong>：包围体（Bounding Volumes）+ 空间细分（Space Subdivision）</li>
+    <li><strong>辐射度核心概念</strong>：视点无关（View-Independent）、Form Factor、间接漫反射处理</li>
+    <li><strong>三种方案对比</strong>：光追 vs 辐射度 vs 光栅化的适用场景和互补关系</li>
+  </ul>
+
+  <div class="warn">
+    ⚠️ <strong>本模块期中未考，且 Revision 明确列入期末范围。</strong>优先准备的形式是"描述光线追踪完整流程"（step-by-step）或"比较光线追踪与辐射度"。光线追踪的 6 个步骤必须能按顺序默写，漏掉关键步骤会丢分。
+  </div>
+</section>
+
+<!-- #two-approaches -->
+<section class="section" id="two-approaches">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>两种渲染出发点</h2>
+        <p class="lead">光栅化 geometry-first vs 光线追踪 pixel-first</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 根本区别，简答题必备</span>
+  </div>
+
+  <div class="note">
+    📌 光栅化和光线追踪的本质区别不在于"效果好坏"，而在于<strong>出发点不同</strong>：一个从几何体出发找像素，一个从像素出发找几何体。
+  </div>
+
+  <table>
+    <thead><tr><th>维度</th><th>光栅化（Rasterization）</th><th>光线追踪（Ray Tracing）</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>出发点</strong></td>
+        <td><span class="label">Geometry-first</span> 逐三角形遍历</td>
+        <td><span class="label">Pixel-first</span> 逐像素遍历</td>
+      </tr>
+      <tr>
+        <td><strong>核心问题</strong></td>
+        <td>这个三角形覆盖哪些像素？</td>
+        <td>这个像素看到的是什么？</td>
+      </tr>
+      <tr>
+        <td><strong>光线方向</strong></td>
+        <td>向前（光源 → 场景 → 相机）</td>
+        <td><strong>向后</strong>（相机 → 场景 → 光源）</td>
+      </tr>
+      <tr>
+        <td><strong>阴影</strong></td>
+        <td>需要额外算法（Shadow Map / Shadow Volume）</td>
+        <td><strong>自然处理</strong>（Shadow Ray）</td>
+      </tr>
+      <tr>
+        <td><strong>反射/折射</strong></td>
+        <td>难以处理</td>
+        <td><strong>自然处理</strong>（递归追踪）</td>
+      </tr>
+      <tr>
+        <td><strong>速度</strong></td>
+        <td><span class="label green">极快</span>（GPU 优化）</td>
+        <td><span class="label red">极慢</span>（计算密集）</td>
+      </tr>
+      <tr>
+        <td><strong>全局光照</strong></td>
+        <td>近似 / 困难</td>
+        <td>部分支持（间接漫反射需 Radiosity）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>考试核心记忆点：</strong>光栅化是"推"（push，把三角形推向像素），光追是"拉"（pull，从像素拉回场景信息）。光追的三大自然优势：<strong>阴影、反射、折射</strong>——都由算法结构自然处理，无需额外的 Shadow Map 等手段。
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>光栅化：推 (Push)</h3>
+      <p>遍历每个三角形 → 投影到屏幕 → 判断覆盖哪些像素 → 对覆盖像素着色。核心操作是<strong>三角形→像素</strong>的映射。</p>
+    </div>
+    <div class="card">
+      <h3>光追：拉 (Pull)</h3>
+      <p>遍历每个像素 → 从 COP 发射光线 → 在场景中找交点 → 根据交点材质计算颜色。核心操作是<strong>像素→场景</strong>的查询。</p>
+    </div>
+  </div>
+</section>
+
+<!-- #ray-tracing-process -->
+<section class="section" id="ray-tracing-process">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>光线追踪完整流程（6 步）</h2>
+        <p class="lead">从相机出发，递归追踪光线计算每个像素颜色</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考！流程描述题</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>定义：</strong>光线追踪从相机出发，向场景发射光线，通过递归追踪反射/折射光线和阴影光线来计算每个像素的精确颜色。这是期末<strong>流程描述题</strong>的最核心考点——必须能按顺序完整写出 6 步。
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe">
+      <b>Step 1: 主光线</b>
+      <span>从 COP 出发，穿过像素中心射入场景 | d = normalize(pixel - COP)</span>
+    </div>
+    <div class="pipe">
+      <b>Step 2: 场景求交</b>
+      <span>与所有物体求交，找到最近交点 P | 记录 N、材质属性 | 无交点 → 背景色</span>
+    </div>
+    <div class="pipe">
+      <b>Step 3: 直接光照</b>
+      <span>对每个光源发射 Shadow Ray | Phong 公式计算可见光源贡献 C<sub>direct</sub></span>
+    </div>
+    <div class="pipe">
+      <b>Step 4: 反射光线</b>
+      <span>R = d - 2(d·N)N | 递归追踪反射光线 → C<sub>reflected</sub></span>
+    </div>
+    <div class="pipe">
+      <b>Step 5: 折射光线</b>
+      <span>Snell 定律计算折射方向 | 递归追踪折射光线 → C<sub>refracted</sub></span>
+    </div>
+    <div class="pipe">
+      <b>Step 6: 颜色合成</b>
+      <span>C<sub>pixel</sub> = C<sub>direct</sub> + r · C<sub>reflected</sub> + t · C<sub>refracted</sub></span>
+    </div>
+  </div>
+
+  <p class="mini-title">Step 1: 生成主光线（Primary Ray / Eye Ray）</p>
+  <p>从 <strong>COP</strong>（相机/眼睛位置）出发，穿过图像平面上的<strong>像素中心</strong>（或超采样子像素点）射入场景。方向向量 <span class="formula-inline">d = normalize(pixel_center − COP)</span>。每个像素至少发射一条 Primary Ray。</p>
+
+  <p class="mini-title">Step 2: 光线-场景求交（Ray-Object Intersection）</p>
+  <p>对场景中所有物体（或先用包围盒做粗检测）计算光线交点，找到<strong>最近的正交点 P</strong>（最小正 t 值，即沿光线方向最近的交点）。记录交点处的<strong>表面法向量 N</strong>和<strong>材质属性</strong>（反射率 r、透明度 t、各反射系数等）。若光线未与任何物体相交（例如射向天空）→ 该像素返回<strong>背景色</strong>，终止处理。</p>
+
+  <div class="note">
+    📌 求交是光追中计算量最大的步骤。光线-三角形求交通常用 Möller-Trumbore 算法；光线-球体求交用二次方程判别式。考试不要求写具体求交算法，但需知道"找最近正交点"这个核心操作。
+  </div>
+
+  <p class="mini-title">Step 3: 计算直接光照（Direct Illumination）</p>
+  <p>在交点 P 处，对场景中的<strong>每个光源 L<sub>i</sub></strong> 发射一条<strong>阴影光线（Shadow Ray）</strong>（详见 Section 3）。阴影光线从 P 出发，方向指向 L<sub>i</sub>。判断规则：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li>若阴影光线在到达 L<sub>i</sub> 前<strong>与其他物体相交</strong> → P 在该光源的阴影中，不计该光源直接光照</li>
+    <li>若阴影光线<strong>顺利到达</strong> L<sub>i</sub> → 该光源可见，用 Phong 公式计算漫反射和镜面反射贡献</li>
+  </ul>
+  <p>汇总所有可见光源的贡献，得到直接光照颜色 <strong>C<sub>direct</sub></strong>。</p>
+
+  <p class="mini-title">Step 4: 生成反射光线（Reflected Ray）</p>
+  <p>若表面有反射（反射率 <span class="formula-inline">r > 0</span>），计算反射方向：</p>
+  <div class="formula">R = d − 2(d · N) N</div>
+  <p>其中 <span class="formula-inline">d</span> 为入射光线方向（指向表面），<span class="formula-inline">N</span> 为表面法向量（均归一化）。以 P 为起点（需微小偏移避免自交），沿 <span class="formula-inline">R</span> 方向<strong>递归追踪</strong>反射光线，得到颜色 <strong>C<sub>reflected</sub></strong>。</p>
+
+  <p class="mini-title">Step 5: 生成折射光线（Refracted Ray）</p>
+  <p>若表面透明（透射率 <span class="formula-inline">t > 0</span>），按 <strong>Snell 定律</strong>计算折射方向：</p>
+  <div class="formula">n₁ sin θ₁ = n₂ sin θ₂</div>
+  <p>其中 n₁、n₂ 为两种介质的折射率，θ₁ 为入射角，θ₂ 为折射角。以 P 为起点，沿折射方向<strong>递归追踪</strong>折射光线，得到颜色 <strong>C<sub>refracted</sub></strong>。</p>
+
+  <div class="note">
+    📌 注意区分：Step 4/5 的反射/折射光线是<strong>递归的</strong>——反射光线射到另一个物体表面后，会在新交点处再次执行 Step 2-6，产生二次反射、三次反射……直到满足终止条件。
+  </div>
+
+  <p class="mini-title">Step 6: 合并颜色（Color Composition）</p>
+  <div class="formula">C<sub>pixel</sub> = C<sub>direct</sub> + r × C<sub>reflected</sub> + t × C<sub>refracted</sub></div>
+  <p>其中 <span class="formula-inline">r</span> 为反射率（reflectivity），<span class="formula-inline">t</span> 为透射率（transmissivity）。所有光线贡献按权重叠加（详见 Section 5 颜色合成公式）。</p>
+
+  <div class="warn">
+    ⚠️ <strong>考场容易漏掉的点：</strong>① Step 2 中需强调找的是"<strong>最近</strong>的正交点"（最小正 t 值），最近才是可见的；② 无交点时返回背景色（光线追踪的"天空"）；③ Step 4 反射光线起点需加微小偏移（offset），否则可能因浮点误差与自身表面"自交"。
+  </div>
+</section>
+
+<!-- #shadows -->
+<section class="section" id="shadows">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>阴影处理：Shadow Ray 机制</h2>
+        <p class="lead">阴影由算法结构自然产生，无需额外 Shadow Map</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 光追核心优势之一</span>
+  </div>
+
+  <div class="note">
+    📌 在光线追踪中，阴影不是通过 Shadow Map 或 Shadow Volume 等额外算法实现的——它直接嵌入在主流程的 Step 3 中：从交点向光源发一条 Shadow Ray，如果被遮挡就是阴影。
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Shadow Ray 判断逻辑</h3>
+      <ul style="list-style:none;padding:0">
+        <li style="padding:4px 0">① 从交点 P 向光源 L 发射 Shadow Ray</li>
+        <li style="padding:4px 0">② 检测光线路径上是否有遮挡物</li>
+        <li style="padding:4px 0">③ 有遮挡物 → P 在阴影中（不计该光源）</li>
+        <li style="padding:4px 0">④ 无遮挡物 → 该光源对 P 可见（计入光照）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>与光栅化阴影的区别</h3>
+      <ul style="list-style:none;padding:0">
+        <li style="padding:4px 0"><span class="label red">光栅化</span> 需 Shadow Map 两遍渲染</li>
+        <li style="padding:4px 0"><span class="label red">光栅化</span> 阴影有走样问题</li>
+        <li style="padding:4px 0"><span class="label green">光追</span> 自然精确，像素级准确</li>
+        <li style="padding:4px 0"><span class="label green">光追</span> 无需额外 Pass 或深度图</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>Shadow Ray 本质上也是一条普通光线，只是它的作用是<strong>"检测可见性"</strong>而非"采样颜色"。它对每个光源发射一条，判断该光源是否对交点可见。被遮挡的光源不计入 Phong 公式，自然产生阴影。</p>
+
+  <div class="warn">
+    ⚠️ <strong>考试重点：</strong>光追中阴影是"自然处理"的——这是光追相比于光栅化的三大核心优势（阴影、反射、折射）之一。考试会问"光追如何产生阴影？"——答：在每个交点向光源发射 Shadow Ray，检测遮挡，而不是用 Shadow Map。
+  </div>
+</section>
+
+<!-- #reflection-refraction -->
+<section class="section" id="reflection-refraction">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>反射与折射公式</h2>
+        <p class="lead">反射向量 R = d - 2(d·N)N · Snell 定律计算折射</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 公式需熟记</span>
+  </div>
+
+  <p class="mini-title">反射向量（Reflection Vector）</p>
+  <div class="formula">R = d − 2(d · N) N</div>
+  <p>其中 <span class="formula-inline">d</span> 为入射光线方向（从 COP 指向交点），<span class="formula-inline">N</span> 为表面法向量（均归一化）。该公式与 Phong 光照中的反射向量公式<strong>完全一致</strong>（来自 M07），只是此处用于生成新的递归光线方向而非计算高光角度。</p>
+
+  <p class="mini-title">Snell 折射定律（Snell's Law）</p>
+  <div class="formula">n₁ sin θ₁ = n₂ sin θ₂</div>
+  <p>其中 n₁、n₂ 分别为入射介质和折射介质的折射率（如空气 n=1.0，水 n=1.33，玻璃 n≈1.5），θ₁ 为入射角（入射光线与法向量的夹角），θ₂ 为折射角（折射光线与法向量反向的夹角）。</p>
+
+  <table>
+    <thead><tr><th>介质</th><th>折射率 n</th></tr></thead>
+    <tbody>
+      <tr><td>真空 / 空气</td><td>1.0</td></tr>
+      <tr><td>水</td><td>1.33</td></tr>
+      <tr><td>玻璃</td><td>~1.5</td></tr>
+      <tr><td>钻石</td><td>2.42</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    📌 <strong>全内反射（Total Internal Reflection）：</strong>当光从高折射率介质射向低折射率介质（如从水到空气），且入射角大于临界角 <span class="formula-inline">θ<sub>c</sub> = arcsin(n₂/n₁)</span> 时，不发生折射，全部反射回原介质。光线追踪中遇到此情况 → 按反射处理。
+  </div>
+</section>
+
+<!-- #color -->
+<section class="section" id="color">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>颜色合成公式</h2>
+        <p class="lead">递归颜色累加：C<sub>p</sub> = r<sub>1</sub>C<sub>1</sub> + r<sub>1</sub>r<sub>2</sub>C<sub>2</sub> + r<sub>1</sub>r<sub>2</sub>r<sub>3</sub>C<sub>3</sub> + ...</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 颜色递推公式</span>
+  </div>
+
+  <div class="formula">C<sub>p</sub> = r<sub>1</sub>C<sub>1</sub> + r<sub>1</sub>r<sub>2</sub>C<sub>2</sub> + r<sub>1</sub>r<sub>2</sub>r<sub>3</sub>C<sub>3</sub> + ...</div>
+
+  <p>其中：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>r<sub>i</sub></strong>：第 i 个物体的反射率（0 ≤ r<sub>i</sub> ≤ 1）</li>
+    <li><strong>C<sub>i</sub></strong>：在第 i 个物体交点处的<strong>直接光照颜色</strong>（由 Step 3 计算，仅包含非递归部分）</li>
+  </ul>
+
+  <p>这个公式说明了为什么反射次数越多，贡献越小（因为 r<sub>i</sub> < 1，乘积以指数速度衰减）。同时也提供了自然的终止条件：当 <span class="formula-inline">r<sub>1</sub>r<sub>2</sub>...r<sub>k</sub></span> 小于阈值 ε 时，后续反射贡献可忽略。</p>
+
+  <div class="note">
+    📌 注意：此公式仅示例反射部分的递归累加。完整公式中，每个交点不仅有直接光照 C<sub>i</sub>，还可能叠加折射贡献。多光源场景中，C<sub>i</sub> 是所有可见光源的 Phong 光照之和。
+  </div>
+</section>
+
+<!-- #termination -->
+<section class="section" id="termination">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>终止条件</h2>
+        <p class="lead">递归追踪不能无限进行，必须设置终止机制</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 流程收尾必提</span>
+  </div>
+
+  <p>光线追踪的递归不能在场景中无限弹射。三个终止条件（满足任一即停止）：</p>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>① 最大递归深度</h3>
+      <p>预设 <span class="formula-inline">max_depth</span>（如 5），达到最大反射/折射次数后强制停止。最常见也最可靠的终止方式。</p>
+    </div>
+    <div class="card">
+      <h3>② 贡献衰减</h3>
+      <p>当 <span class="formula-inline">r<sub>1</sub> · r<sub>2</sub> · ... · r<sub>k</sub> < ε</span> 时（如 ε = 0.01），后续贡献可忽略不计，停止递归。</p>
+    </div>
+    <div class="card">
+      <h3>③ 射向背景</h3>
+      <p>光线未与任何物体相交（如反射方向指向天空），返回背景色，自然终止。</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试提醒：</strong>描述完整光追流程时，如果遗漏终止条件，会被扣分。在 Step 6 的最后说明"重复 Step 2-6，直到满足终止条件"即可，不需要单独写一大段。
+  </div>
+</section>
+
+<!-- #acceleration -->
+<section class="section" id="acceleration">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">7</div>
+      <div>
+        <h2>加速结构</h2>
+        <p class="lead">包围体 + 空间细分：提前排除不可能相交的物体</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 简答题：如何加速光追？</span>
+  </div>
+
+  <div class="note">
+    📌 光线追踪最大的性能瓶颈是<strong>光线-物体求交测试</strong>——如果每条光线都要与场景中所有三角形求交，计算量无法接受。加速的核心思想：<strong>避免光线与所有物体求交，提前排除不可能相交的物体。</strong>
+  </div>
+
+  <p class="mini-title">方法一：包围体（Bounding Volumes）</p>
+  <p>为每个物体（或物体组）构建<strong>简单的包围几何体</strong>（如轴对齐包围盒 AABB、有向包围盒 OBB）：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li>先测试光线与简单包围体的求交（计算代价低）</li>
+    <li>仅当光线与包围体相交时，才进行精确的物体内部求交测试</li>
+    <li>减少了大量不必要的精确求交测试</li>
+  </ul>
+
+  <div class="note">
+    📌 <strong>Revision 要求的表述边界：</strong>考试只需要解释 Bounding Volumes 的"先粗测、再精测"思想，不需要展开具体硬件或工程实现。
+  </div>
+
+  <p class="mini-title">方法二：空间细分（Space Subdivision）</p>
+
+  <table>
+    <thead><tr><th>方法</th><th>原理</th><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>均匀网格 (Uniform Grid)</strong></td>
+        <td>场景划分为等大小 voxel，每 voxel 存相交物体列表；光线沿网格逐 voxel 遍历（DDA 算法），仅对经过的 voxel 中物体求交</td>
+        <td>实现简单，光线遍历高效</td>
+        <td>对不均匀场景效率低（大量空 voxel 或某 voxel 物体过多）</td>
+      </tr>
+      <tr>
+        <td><strong>八叉树 (Octree)</strong></td>
+        <td>递归将空间 8 等分，密集区域细分更细，稀疏区域保持粗粒度</td>
+        <td>自适应物体分布</td>
+        <td>需处理物体跨越节点边界</td>
+      </tr>
+      <tr>
+        <td><strong>KD-Tree</strong></td>
+        <td>沿轴交替二分空间，每层只分割一个维度</td>
+        <td>更灵活的分割，适合非均匀场景</td>
+        <td>构建复杂度较高</td>
+      </tr>
+      <tr>
+        <td><strong>BSP Tree</strong></td>
+        <td>用任意平面二分空间</td>
+        <td>最灵活</td>
+        <td>构建最复杂</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>考试回答"如何加速光线追踪"的标准答案：</strong>① 包围体 (Bounding Volumes)：用简单几何体做粗检测，仅相交时才精确求交；② 空间细分 (Space Subdivision)：将场景划分为 cell/voxel，光线只对途经区域内的物体求交。
+  </div>
+</section>
+
+<!-- #advantages -->
+<section class="section" id="advantages">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">8</div>
+      <div>
+        <h2>光线追踪优缺点</h2>
+        <p class="lead">物理精确 vs 计算代价</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 对比题素材</span>
+  </div>
+
+  <table>
+    <thead><tr><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="label green">阴影精确</span> 阴影由 Shadow Ray 自然产生，像素级准确</td>
+        <td><span class="label red">计算量极大</span> 大量光线-物体求交测试</td>
+      </tr>
+      <tr>
+        <td><span class="label green">反射/折射精确</span> 自然处理直接镜面反射和折射</td>
+        <td><span class="label red">不处理间接漫反射</span> 光在漫反射面之间的多次弹射无法处理</td>
+      </tr>
+      <tr>
+        <td><span class="label green">全局光照效果好</span> 焦散效应（Caustics）等</td>
+        <td><span class="label red">不适合实时渲染</span> 计算时间随场景复杂度急剧增加</td>
+      </tr>
+      <tr>
+        <td><span class="label green">实现概念简单</span> 递归结构自然，符合物理直觉</td>
+        <td><span class="label red">视点相关</span> 每次换视角需重新渲染全图</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>光线追踪的最大盲区：间接漫反射（Indirect Diffuse Reflection）</strong>——这是讲义原话。光追能处理镜面反射/折射，但无法处理光在粗糙表面之间多次弹射后形成的柔和全局光照。这正是辐射度方法补足的领域。
+  </div>
+</section>
+
+<!-- #radiosity -->
+<section class="section" id="radiosity">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">9</div>
+      <div>
+        <h2>辐射度（Radiosity）</h2>
+        <p class="lead">基于能量守恒的漫反射全局光照方法</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 视点无关 + Form Factor</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>定义：</strong>辐射度（Radiosity）是基于<strong>能量守恒定律</strong>，计算场景中漫反射表面之间光能交换（直接和间接漫反射）的全局光照方法。它解决的是光线追踪做不到的事——<strong>间接漫反射（Indirect Diffuse Reflection）</strong>。
+  </div>
+
+  <p class="mini-title">辐射度方程</p>
+  <p>每个面片 i 的辐射度 <strong>B<sub>i</sub></strong>（单位面积发出的光能）：</p>
+  <div class="formula">B<sub>i</sub> = E<sub>i</sub> + ρ<sub>i</sub> × Σ (F<sub>ij</sub> × B<sub>j</sub>)</div>
+  <p>其中：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>E<sub>i</sub></strong>：面片 i 自身发射的光能（光源才有，普通面片为 0）</li>
+    <li><strong>ρ<sub>i</sub></strong>：面片 i 的漫反射率（0 ≤ ρ<sub>i</sub> ≤ 1）</li>
+    <li><strong>F<sub>ij</sub></strong>：形状因子（Form Factor），描述面片 j 发出的光有多少比例到达面片 i</li>
+  </ul>
+
+  <p class="mini-title">Form Factor（形状因子）</p>
+  <p><strong>F<sub>ij</sub></strong> 是辐射度方法的核心概念。它描述了两个面片之间的<strong>几何可见性关系</strong>：面片 j 发出的辐射能量中，有多少比例能到达面片 i。F<sub>ij</sub> 取决于：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li>两面片的<strong>相对朝向</strong>（正对着的接收更多）</li>
+    <li>两面片之间的<strong>距离</strong>（越远越少）</li>
+    <li>两面片之间是否有<strong>遮挡物</strong>（被挡住则 F<sub>ij</sub> = 0）</li>
+  </ul>
+
+  <p class="mini-title">求解过程</p>
+  <div class="pipeline">
+    <div class="pipe">
+      <b>1. 场景离散化</b>
+      <span>将场景中所有表面划分为 n 个小面片（patch）</span>
+    </div>
+    <div class="pipe">
+      <b>2. 计算 Form Factor</b>
+      <span>对每对面片 (i, j) 计算 F<sub>ij</sub>（共 n² 个，最耗时步骤）</span>
+    </div>
+    <div class="pipe">
+      <b>3. 构建线性方程组</b>
+      <span>[B] = [E] + [ρF][B] → n × n 线性方程组</span>
+    </div>
+    <div class="pipe">
+      <b>4. 求解辐射度</b>
+      <span>迭代法（Gauss-Seidel / Progressive Refinement）或直接矩阵求解</span>
+    </div>
+    <div class="pipe">
+      <b>5. 渲染</b>
+      <span>用辐射度值更新各面片颜色，扫描转换渲染（视点无关！）</span>
+    </div>
+  </div>
+
+  <p class="mini-title">辐射度的关键特性</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3><span class="label green">视点无关</span> View-Independent</h3>
+      <p>辐射度计算的是<strong>表面本身的辐射能量分布</strong>，与观察者位置无关。计算一次后，可以从任意视角渲染，无需重新计算——这是辐射度最大的优势之一。</p>
+    </div>
+    <div class="card">
+      <h3><span class="label">软阴影自然产生</span></h3>
+      <p>通过 Form Factor 自然处理面片之间的遮挡关系，产生柔和渐变的软阴影（Soft Shadow），无需像光追那样需要对 Area Light 额外采样。</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3><span class="label red">无法处理镜面</span></h3>
+      <p>辐射度假设所有表面都是<strong>纯漫反射（perfectly diffuse / Lambertian）</strong>，镜面反射是视点相关效果，辐射度无法处理。</p>
+    </div>
+    <div class="card">
+      <h3><span class="label red">计算代价极大</span></h3>
+      <p>需要计算 n² 个 Form Factor 并求解 n × n 线性方程组，n 为面片数。对于复杂场景（n 很大），计算代价非常高昂。</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试关键词（Likely Exam Keywords）：</strong>① <strong>View-Independent（视点无关）</strong>——辐射度一次计算，多次视角复用；② <strong>Form Factor（形状因子）</strong>——描述面片间几何可见性关系的量；③ <strong>Indirect Diffuse Reflection（间接漫反射）</strong>——光线追踪做不到，辐射度可以。
+  </div>
+</section>
+
+<!-- #comparison -->
+<section class="section" id="comparison">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">10</div>
+      <div>
+        <h2>三种方案完整对比</h2>
+        <p class="lead">光追 vs 辐射度 vs 光栅化：各自擅长什么？</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 综合对比题高概率</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>维度</th><th>光栅化 (Rasterization)</th><th>光线追踪 (Ray Tracing)</th><th>辐射度 (Radiosity)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>出发点</strong></td>
+        <td>Geometry-first</td>
+        <td>Pixel-first</td>
+        <td>Energy-based</td>
+      </tr>
+      <tr>
+        <td><strong>处理反射类型</strong></td>
+        <td>需额外算法处理一切</td>
+        <td>镜面反射 (Specular)、折射 (Refraction)</td>
+        <td><strong>间接漫反射 (Indirect Diffuse)</strong></td>
+      </tr>
+      <tr>
+        <td><strong>视点依赖</strong></td>
+        <td>视点相关</td>
+        <td><span class="label orange">视点相关</span>（每次换视角重新渲染）</td>
+        <td><span class="label green">视点无关</span>（一次计算多视角复用）</td>
+      </tr>
+      <tr>
+        <td><strong>阴影</strong></td>
+        <td>需额外算法（Shadow Map/Volume）</td>
+        <td><span class="label green">精确</span>（Shadow Ray 自然处理）</td>
+        <td><span class="label green">软阴影自然产生</span>（通过 Form Factor）</td>
+      </tr>
+      <tr>
+        <td><strong>速度</strong></td>
+        <td><span class="label green">极快</span>（GPU 硬件优化）</td>
+        <td><span class="label red">极慢</span>（大量求交计算）</td>
+        <td><span class="label red">极慢</span>（n² Form Factor + 线性方程组）</td>
+      </tr>
+      <tr>
+        <td><strong>全局光照</strong></td>
+        <td>近似 / 困难</td>
+        <td>部分（镜面反射精确，间接漫反射缺失）</td>
+        <td><span class="label green">精确</span>（漫反射全局光完整求解）</td>
+      </tr>
+      <tr>
+        <td><strong>适用场景</strong></td>
+        <td>实时游戏、交互渲染</td>
+        <td>电影特效、镜面/玻璃/金属材质</td>
+        <td>建筑可视化、室内设计（漫反射场景）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">三者互补——组合使用</p>
+  <p>光线追踪 + 辐射度可以同时处理镜面和漫反射全局光：</p>
+  <ul style="margin:8px 0 8px 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li>先用<strong>辐射度</strong>计算漫反射全局光（视点无关，计算一次），得到场景中所有表面的辐射度分布</li>
+    <li>再用<strong>光线追踪</strong>添加镜面反射/折射效果（视点相关）</li>
+    <li>代价：计算时间进一步增加</li>
+  </ul>
+
+  <div class="note">
+    📌 <strong>考试答"三种方案各自适用什么场景"的标准逻辑：</strong>光栅化用于实时应用（游戏，需要速度）；光追用于需要精确镜面反射/折射的离线渲染（电影）；辐射度用于漫反射为主的室内场景（建筑可视化）。
+  </div>
+</section>
+
+<!-- #templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div>
+        <h2>考场答案模板</h2>
+        <p class="lead">闭卷可直接套用的答题框架</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 模板 05 + 06</span>
+  </div>
+
+  <p class="mini-title">题型 1：描述光线追踪完整流程（P8-1 对应）</p>
+  <div class="answer-box">
+    <p><strong>答案框架（6 步 + 终止条件）：</strong></p>
+    <p>① <strong>发射主光线 (Primary Ray)</strong>：从 COP（相机/眼点）出发，穿过像素中心射入场景。</p>
+    <p>② <strong>光线-场景求交 (Ray-Object Intersection)</strong>：找到最近的正交点 P（最小正 t 值），记录表面法向量 N 和材质属性。无交点则返回背景色。</p>
+    <p>③ <strong>阴影检测 (Shadow Ray)</strong>：从 P 向每个光源发射阴影光线。若阴影光线在到达光源前被其他物体遮挡 → P 在阴影中，不计该光源的直接光照。仅对可见光源用 Phong 公式计算 C<sub>direct</sub>。</p>
+    <p>④ <strong>反射光线 (Reflected Ray)</strong>：若表面有反射（r > 0），按 R = d − 2(d·N)N 生成反射光线，递归追踪得到 C<sub>reflected</sub>。</p>
+    <p>⑤ <strong>折射光线 (Refracted Ray)</strong>：若表面透明，按 Snell 定律（n₁sinθ₁ = n₂sinθ₂）生成折射光线，递归追踪得到 C<sub>refracted</sub>。</p>
+    <p>⑥ <strong>颜色合成</strong>：C<sub>pixel</sub> = C<sub>direct</sub> + r × C<sub>reflected</sub> + t × C<sub>refracted</sub></p>
+    <p>⑦ <strong>终止条件</strong>：达到最大递归深度，或颜色贡献 r₁r₂...r<sub>k</sub> < ε，或光线未击中任何物体。</p>
+    <p style="margin-top:8px"><strong>💡 送分点：</strong>阴影、反射、折射均由算法结构<strong>自然处理</strong>，无需额外算法——这是光追对比光栅化的核心优势。</p>
+  </div>
+
+  <p class="mini-title">题型 2：光线追踪 vs 光栅化对比（P8-2 对应）</p>
+  <div class="answer-box">
+    <p><strong>答案框架（6 维度对比表）：</strong></p>
+    <table style="margin:8px 0">
+      <thead><tr><th>维度</th><th>光栅化</th><th>光线追踪</th></tr></thead>
+      <tbody>
+        <tr><td>出发点</td><td>Geometry-first：逐三角形</td><td>Pixel-first：逐像素</td></tr>
+        <tr><td>核心问题</td><td>这个三角形覆盖哪些像素？</td><td>这个像素看到什么？</td></tr>
+        <tr><td>速度</td><td>✅ 极快，GPU 并行优化</td><td>❌ 极慢，大量求交计算</td></tr>
+        <tr><td>阴影</td><td>需额外算法（Shadow Map）</td><td>✅ Shadow Ray 自然处理</td></tr>
+        <tr><td>反射/折射</td><td>❌ 难以精确处理</td><td>✅ 递归追踪自然处理</td></tr>
+        <tr><td>适用场景</td><td>实时游戏、交互渲染</td><td>电影特效、离线渲染</td></tr>
+      </tbody>
+    </table>
+    <p><strong>💡 送分点：</strong>"光栅化无法处理精确的反射/折射/阴影"——这三点是光线追踪的核心优势。</p>
+  </div>
+
+  <p class="mini-title">题型 3：光线追踪 vs 辐射度对比（P8-2 对应）</p>
+  <div class="answer-box">
+    <p><strong>答案框架（4 维度对比 + 结合思路）：</strong></p>
+    <table style="margin:8px 0">
+      <thead><tr><th>维度</th><th>光线追踪</th><th>辐射度</th></tr></thead>
+      <tbody>
+        <tr><td>处理反射类型</td><td>镜面反射 (Specular)、折射</td><td><strong>间接漫反射 (Diffuse-to-Diffuse)</strong></td></tr>
+        <tr><td>视点依赖</td><td><strong>视点相关</strong>（换视角需重新渲染）</td><td><strong>视点无关</strong>（一次计算，多视角复用）</td></tr>
+        <tr><td>计算复杂度</td><td>高（求交测试多）</td><td>极高（n² Form Factor + 线性方程组）</td></tr>
+        <tr><td>适用场景</td><td>镜面/玻璃/金属</td><td>漫反射室内场景（建筑可视化）</td></tr>
+      </tbody>
+    </table>
+    <p><strong>结合两者</strong>可获得更完整的全局光照效果：先用辐射度计算漫反射全局光（视点无关，计算一次），再用光线追踪添加镜面反射/折射效果（视点相关）。代价是计算时间进一步增加。</p>
+  </div>
+</section>
+
+<!-- #quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div>
+        <h2>自测题</h2>
+        <p class="lead">流程、加速、辐射度和颜色合成闭卷自检</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 5 道核心题</span>
+  </div>
+
+  <details>
+    <summary>P8-1. 请用步骤化（Step-by-Step）的方式描述光线追踪算法的完整流程，包括主光线生成、交点计算、阴影处理、反射/折射处理和终止条件。</summary>
+    <div class="detail-body">
+      <p><strong>参考答案（6 步）：</strong></p>
+      <p><strong>Step 1 — 生成主光线 (Primary Ray)：</strong>从 COP（观察者/相机位置）出发，穿过图像平面上的像素中心，射入场景。方向向量 d = normalize(pixel_center − COP)。</p>
+      <p><strong>Step 2 — 光线-场景求交 (Ray-Object Intersection)：</strong>对场景中所有物体（或先测试包围盒）计算光线交点，找到最近的正交点 P（最小正 t 值）。若无交点 → 返回背景色。</p>
+      <p><strong>Step 3 — 计算直接光照 (Direct Illumination)：</strong>在交点 P 处，对每个光源 L<sub>i</sub> 发射阴影光线 (Shadow Ray)。若阴影光线与其他物体相交（且交点在 P 和 L<sub>i</sub> 之间）→ P 在该光源阴影中。仅对可见光源用 Phong 公式计算漫反射和镜面反射颜色 C<sub>direct</sub>。</p>
+      <p><strong>Step 4 — 生成反射光线：</strong>若表面有反射 (r > 0)，计算反射方向 R = d − 2(d·N)N，递归追踪反射光线，得到颜色 C<sub>reflected</sub>。注意起点需偏移避免自交。</p>
+      <p><strong>Step 5 — 生成折射光线：</strong>若表面透明 (t > 0)，按 Snell 定律 (n₁sinθ₁ = n₂sinθ₂) 计算折射方向，递归追踪折射光线，得到颜色 C<sub>refracted</sub>。</p>
+      <p><strong>Step 6 — 合并颜色：</strong>C<sub>pixel</sub> = C<sub>direct</sub> + r × C<sub>reflected</sub> + t × C<sub>refracted</sub>。颜色贡献递推：C<sub>p</sub> = r₁C₁ + r₁r₂C₂ + r₁r₂r₃C₃ + ...</p>
+      <p><strong>终止条件（任一满足即停止递归）：</strong>① 达到最大反射次数（如 max_depth = 5）；② 光线颜色贡献量过小（r₁·r₂·...·r<sub>k</sub> < ε）；③ 光线射向背景（无交点）。</p>
+      <p style="margin-top:8px"><strong>💡 关键得分点：</strong>光线追踪的自然优势——阴影 (Shadow Ray)、反射 (Reflected Ray)、折射 (Refracted Ray) 均由算法结构自然处理，无需额外算法（与光栅化不同）。正确描述这三类光线是考试的核心。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P8-2. 光线追踪和辐射度方法都可以用于全局光照（Global Illumination），请从"处理的反射类型"、"视点依赖性"、"计算复杂度"和"适用场景"四个维度进行比较，并解释为何将两者结合可以获得更完整的全局光照效果。</summary>
+    <div class="detail-body">
+      <table>
+        <thead><tr><th>维度</th><th>光线追踪 (Ray Tracing)</th><th>辐射度 (Radiosity)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>处理的反射类型</strong></td><td>镜面反射 (Specular)、折射 (Refraction)、直接漫反射</td><td><strong>间接漫反射 (Diffuse-to-Diffuse)</strong>，不能处理镜面</td></tr>
+          <tr><td><strong>视点依赖性</strong></td><td><strong>视点相关 (View-dependent)</strong>：换视角必须重新计算</td><td><strong>视点无关 (View-independent)</strong>：计算一次，多视角复用</td></tr>
+          <tr><td><strong>计算复杂度</strong></td><td>高（大量光线-物体求交测试）</td><td>极高 (O(n²) 形状因子矩阵 + 线性方程组求解)</td></tr>
+          <tr><td><strong>适用场景</strong></td><td>镜面、玻璃、金属材质，需要精确阴影反射折射</td><td>漫反射室内场景（建筑可视化、室内设计）</td></tr>
+          <tr><td><strong>结果存储</strong></td><td>每帧渲染生成</td><td>存储辐射度值（可用于实时重渲染）</td></tr>
+        </tbody>
+      </table>
+      <p><strong>为何结合两者：</strong></p>
+      <ul style="margin:8px 0 0 20px;font-size:14px;line-height:2">
+        <li>光线追踪擅长处理<strong>镜面反射和折射</strong>（视点相关效果），但无法处理<strong>间接漫反射</strong>（光在漫反射面之间多次弹射后产生的柔和全局光照）</li>
+        <li>辐射度方法精确处理<strong>漫反射表面之间的间接光能传递</strong>，但无法处理镜面效果</li>
+        <li>结合方法：先用辐射度计算漫反射全局光（视点无关，计算一次），再用光线追踪添加镜面反射/折射效果（视点相关）。代价是计算时间进一步增加。</li>
+      </ul>
+      <p style="margin-top:8px"><strong>💡 关键得分点：</strong>辐射度的关键词——<strong>视点无关 (View-Independent)</strong>、<strong>间接漫反射 (Indirect Diffuse Reflection)</strong>、<strong>形状因子 (Form Factor)</strong>。光线追踪无法处理间接漫反射——这是讲义原话，是高频考点。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P8-3. 解释"包围体（Bounding Volumes）"和"空间细分（Space Subdivision）"两种光线追踪加速方法的原理。</summary>
+    <div class="detail-body">
+      <p><strong>包围体（Bounding Volumes）：</strong>为每个物体或物体组构建简单的包围几何体。先测试光线是否与包围体相交；若不相交，则直接跳过内部复杂物体；若相交，再做精确求交。核心收益是用便宜的粗检测替代大量昂贵的精确检测。</p>
+      <p><strong>空间细分（Space Subdivision）：</strong></p>
+      <ul style="margin:8px 0 0 20px;font-size:14px;line-height:2">
+        <li><strong>均匀细分 (Uniform Grid)：</strong>场景划分为等大小 voxel，每 voxel 存储与之相交的物体列表。光线沿网格逐步遍历（DDA 算法），仅对经过的 voxel 中的物体求交。缺点：对稀疏场景（大部分 voxel 空）效率低。</li>
+        <li><strong>非均匀细分（八叉树 Octree、KD-Tree）：</strong>稀疏区域保持大网格，密集区域细分更细，减少总 voxel 数，提高效率。</li>
+      </ul>
+      <p style="margin-top:8px"><strong>💡 加速的核心思想都是"避免光线与所有物体求交，提前排除不可能相交的物体"。</strong></p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P8-4. 描述辐射度方法的基本过程，并说明它的主要优点和缺点。</summary>
+    <div class="detail-body">
+      <p><strong>过程：</strong>将场景表面划分为 patch；计算每对 patch 之间的形状因子 (Form Factor)；根据能量守恒建立辐射度方程；求解每个 patch 的辐射度值；最后从任意视角渲染结果。</p>
+      <p><strong>优点：</strong>能处理漫反射表面之间的间接光能传递；结果视点无关，计算一次后可从不同视角观察；软阴影和颜色渗透效果自然。</p>
+      <p><strong>缺点：</strong>计算代价高；主要适合 diffuse-to-diffuse 场景；不能直接处理镜面反射和折射。</p>
+      <p><strong>关键词：</strong>Energy conservation, Form Factor, View-Independent, Indirect Diffuse Reflection。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P8-5. 光线追踪的像素颜色由哪些部分组成？为什么它比光栅化更容易得到反射、折射和阴影？</summary>
+    <div class="detail-body">
+      <p><strong>颜色组成：</strong>C<sub>pixel</sub> = C<sub>direct</sub> + r × C<sub>reflected</sub> + t × C<sub>refracted</sub>。直接光来自可见光源的局部光照；反射光来自反射光线递归结果；折射光来自折射光线递归结果。</p>
+      <p><strong>原因：</strong>光线追踪从像素出发发射 ray，天然可以沿几何路径继续生成 shadow ray、reflected ray、refracted ray；这些效果是递归求交过程的一部分。光栅化以三角形覆盖像素为出发点，通常需要额外算法近似这些效果。</p>
+    </div>
+  </details>
+</section>
+
+<!-- #final-recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div>
+        <h2>最后速记</h2>
+        <p class="lead">考前 5 分钟快速过一遍</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背流程与公式</p>
+      <ul class="checklist">
+        <li>光追 6 步：Primary Ray → 求交 → Shadow Ray → 反射 (R=d−2(d·N)N) → 折射 (Snell) → 颜色合成</li>
+        <li>C<sub>p</sub> = r₁C₁ + r₁r₂C₂ + r₁r₂r₃C₃ + ...</li>
+        <li>终止条件：max_depth / 贡献 < ε / 射向背景</li>
+        <li>反射向量 R = d − 2(d·N)N（与 Phong 相同）</li>
+        <li>Snell 定律：n₁ sinθ₁ = n₂ sinθ₂</li>
+        <li>辐射度方程：B<sub>i</sub> = E<sub>i</sub> + ρ<sub>i</sub> × Σ(F<sub>ij</sub> × B<sub>j</sub>)</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>光追的出发点：Pixel-first（光栅化是 Geometry-first）</li>
+        <li>光追三大自然优势：阴影、反射、折射（无需额外算法）</li>
+        <li>光追最大盲区：不处理间接漫反射（需辐射度补足）</li>
+        <li>辐射度关键词：View-Independent（视点无关）、Form Factor（形状因子）</li>
+        <li>加速核心：Bounding Volumes 粗检测 + Space Subdivision 减少候选物体</li>
+        <li>光追 + 辐射度 → 完整全局光照（镜面 + 漫反射）</li>
+        <li>Step 2 无交点时 → 返回背景色（不要漏写）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="footer">
+  CS5182 Computer Graphics · Final Exam Navigator · M08 光线追踪与辐射度
+</footer>
+
+</div><!-- .content -->
+</main><!-- .main -->
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

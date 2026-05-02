@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M09 · 实时渲染、GPU 与动画</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #667085;
+  --soft: #eef4ff; --blue: #155EEF; --blue2: #003C88;
+  --red: #D7422A; --green: #16803C; --orange: #E86A00; --purple: #6941C6;
+  --border: #d9e2ef; --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08); --radius: 18px; --sidebar: 292px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.72;color:var(--ink);background:radial-gradient(circle at top right,rgba(21,94,239,.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f5f7fb 45%,#f7f8fb 100%);min-height:100vh}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:20px 0;max-width:700px}
+.pipe{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(16,24,40,.04);position:relative}
+.pipe b{font-size:14px;font-weight:800;color:var(--blue2);white-space:nowrap;min-width:100px}
+.pipe span{font-size:13px;color:var(--muted)}
+.pipe::after{content:"↓";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:14px;color:var(--border);font-weight:700;z-index:1}
+.pipe:last-child::after{display:none}
+
+/* grid */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.card{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05)}
+.card h3{font-size:15px;font-weight:800;color:var(--blue2);margin-bottom:8px}
+.card p,.card li{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{border:1px solid var(--border2);padding:10px 14px;text-align:left}
+th{background:var(--soft);font-weight:700;color:var(--blue2);font-size:13px}
+td{color:var(--ink);font-size:13px}
+
+/* mini-title */
+.mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+
+/* details */
+details{margin:12px 0;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+summary{padding:14px 18px;font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,255,255,.93);color:var(--ink)}
+summary:hover{background:var(--soft)}
+.detail-body{padding:16px 18px;border-top:1px solid var(--border2);font-size:14px;background:rgba(255,255,255,.7)}
+
+/* quick / final-recall */
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.quick .mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:8px;border:none}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:6px 0;font-size:13px;color:var(--ink);padding-left:20px;position:relative}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+
+/* footer */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border2);color:var(--muted);font-size:13px}
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M09 实时渲染、GPU 与动画</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#lod">LOD 技术</a>
+    <a class="nav-link" href="#ecol-vsplit">Edge Collapse & Vertex Split</a>
+    <a class="nav-link" href="#selective-refinement">Selective Refinement</a>
+    <a class="nav-link" href="#quality-cost">视觉质量与渲染代价</a>
+    <a class="nav-link" href="#shadows">阴影技术</a>
+    <a class="nav-link" href="#gpu-cpu">GPU vs CPU</a>
+    <a class="nav-link" href="#gpu-communication">Efficient Communication</a>
+    <a class="nav-link" href="#programmable-pipeline">可编程 GPU 管线</a>
+    <a class="nav-link" href="#animation">计算机动画</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 9 · CS5182 Final Sprint</div>
+  <h2>实时渲染、GPU 与动画</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计，覆盖 LOD 技术、阴影生成、GPU 可编程管线、以及三种计算机动画方法。本章为期末新增内容（期中未考），是考前必须重点掌握的新知识模块。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>8</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>5+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>0</b><span>计算题</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>本章覆盖实时渲染的核心优化技术（LOD、阴影）、GPU 架构与可编程管线、以及计算机动画的三种制作方法。是光栅化管线向"实时"方向的延伸。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p><a href="CS5182_Module_5_Review.html">M05 隐藏面消除</a>（Z-buffer 原理）、<a href="CS5182_Module_7_Review.html">M07 光照模型</a>（Phong 着色与着色器对应关系）</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能对比 Discrete LOD vs Progressive Mesh；能说清 Shadow Volume vs Shadow Map 的原理和优劣；能区分 GPU 三种处理器的职责；能默写三种动画方式的对比表。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p><span class="label orange">期末新增</span> GPU 三种着色器职责分配题；Shadow Volume vs Shadow Map 对比题；三种动画方式对比表；Progressive Mesh 操作与存储。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong><a href="CS5182_Module_8_Review.html">M08 光线追踪与辐射度</a> → <strong>M09 实时渲染、GPU 与动画</strong> → （本课程最后一个模块）
+  </div>
+</section>
+
+<!-- #roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M09 是 CS5182 最后一个模块，涵盖实时渲染的三大支柱：LOD、阴影、GPU</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 期末新增 ~10%</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>本模块在考试中的定位：</strong>M09 是<strong>期末新增范围（期中未考）</strong>，预计占期末总分 ~10%（约 1-2 道题）。出题形式以<strong>对比分析</strong>和<strong>职责划分</strong>为主，不涉及数值计算。
+  </div>
+
+  <p>考试中 M09 相关题目约占 <strong>~10%</strong>，核心考察点：</p>
+  <ul style="margin:12px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>GPU 可编程管线三个处理器的职责</strong>：顶点着色器（变换/背面消除）、光栅化器（裁剪/插值）、片段着色器（Z-test/着色/纹理）</li>
+    <li><strong>GPU 两种并行方式</strong>：数据级并行（同一操作不同数据）vs 任务级并行（流水线）</li>
+    <li><strong>Efficient communication</strong>：减少 CPU-GPU 数据传输，把数据留在 GPU 端连续处理</li>
+    <li><strong>Shadow Volume vs Shadow Map</strong>：原理、精度、复杂度和主要限制的完整对比</li>
+    <li><strong>三种动画方式对比</strong>：Keyframe（艺术家主导）/ Procedural（算法驱动）/ Motion Capture（真实数据驱动）</li>
+    <li><strong>Progressive Mesh</strong>：Edge Collapse 减少 2 个面，Vertex Split 增加 2 个面；存储格式 = base mesh + vsplit 序列</li>
+  </ul>
+
+  <div class="warn">
+    ⚠️ <strong>期中未考，且 Revision 明确列入期末范围。</strong>本模块应按高优先级准备。最可能的出题角度：① 可编程管线三处理器职责（P9-1）；② Shadow Volume vs Shadow Map 对比（P9-2）；③ 三种动画方式对比（P9-3）；④ Progressive Mesh 操作与存储（P9-4）；⑤ Efficient communication 简答。
+  </div>
+</section>
+
+<!-- #lod -->
+<section class="section" id="lod">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>LOD 技术（Level of Detail）</h2>
+        <p class="lead">根据物体与观察者的距离动态调整几何细节，近处高精度、远处低精度</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ Discrete vs Progressive 对比</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>核心概念：</strong>LOD 的核心思想是用距离换精度——远距离物体的细节人眼无法分辨，用低精度模型渲染可以大幅节省 GPU 计算资源，而视觉质量几乎不受影响。
+  </div>
+
+  <p class="mini-title">离散 LOD（Discrete LOD）</p>
+
+  <p><strong>预处理阶段：</strong>为每个物体预计算若干个不同分辨率的模型（如 LOD0=高, LOD1=中, LOD2=低）</p>
+  <p><strong>运行时：</strong>根据物体到视点的距离，直接选择最合适的 LOD 级别切换</p>
+
+  <table>
+    <thead><tr><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr><td>运行时高效，直接选择预计算模型即可</td><td>需要决定「需要几个 LOD 级别」——不好确定</td></tr>
+      <tr><td>实现简单</td><td>切换 LOD 时出现<strong>视觉跳变（Popping Artifact）</strong></td></tr>
+      <tr><td></td><td>需存储多个完整模型，<strong>存储开销大</strong></td></tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">渐进网格（Progressive Mesh）</p>
+
+  <p>Progressive Mesh 是<strong>连续 LOD</strong> 方法——通过 <strong>Edge Collapse</strong>（边折叠）逐步降低分辨率，或通过 <strong>Vertex Split</strong>（顶点分裂）逐步恢复。不是预存多个离散级别，而是存储<strong>操作序列</strong>。</p>
+
+  <table>
+    <thead><tr><th>对比维度</th><th>Discrete LOD</th><th>Progressive Mesh</th></tr></thead>
+    <tbody>
+      <tr><td>LOD 切换</td><td>跳变（Popping）</td><td><span class="label green">平滑连续</span></td></tr>
+      <tr><td>存储</td><td>多个完整模型</td><td><span class="label green">base mesh + 操作序列</span></td></tr>
+      <tr><td>运行时开销</td><td>低（直接选模型）</td><td>中（需执行 vsplit 操作）</td></tr>
+      <tr><td>适用场景</td><td>场景物体数量少，切换频率低</td><td>大型连续场景（地形等）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>考试重点：</strong>Discrete LOD 的最大问题是 Popping（视觉跳变），Progressive Mesh 用连续 vsplit 操作解决了这个问题。答题时必须点出「连续」vs「离散」的对比。
+  </div>
+</section>
+
+<!-- #ecol-vsplit -->
+<section class="section" id="ecol-vsplit">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>Edge Collapse & Vertex Split</h2>
+        <p class="lead">Progressive Mesh 的核心操作——一面减少、一面恢复</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 高频考点：减少/增加 2 面</span>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Edge Collapse（边折叠）</h3>
+      <p>将一条边的<strong>两个端点合并为一个顶点</strong></p>
+      <ul style="margin-top:8px;padding-left:20px;font-size:13px;color:var(--muted);line-height:2">
+        <li>与该边相邻的<strong>两个三角形被删除</strong></li>
+        <li>面数 <strong>减少 2</strong>，顶点数减少 1</li>
+        <li>符号：M<sub>n</sub> →<sup>ecol</sup> M<sub>n-1</sub></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Vertex Split（顶点分裂）</h3>
+      <p>将一个顶点<strong>分裂为两个相邻顶点</strong>，引入新边</p>
+      <ul style="margin-top:8px;padding-left:20px;font-size:13px;color:var(--muted);line-height:2">
+        <li>新增<strong> 2 个三角形</strong></li>
+        <li>面数<strong>增加 2</strong>，是 Edge Collapse 的逆操作</li>
+        <li>符号：M<sub>n-1</sub> →<sup>vsplit</sup> M<sub>n</sub></li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="mini-title">Progressive Mesh 结构与存储格式</p>
+
+  <div class="formula">
+    高分辨率原始模型 M<sub>ori</sub> = M<sub>n</sub><br>
+    &nbsp;&nbsp;↓ ecol × n 次（逐步降低）<br>
+    低分辨率基础网格 M<sub>0</sub>（base mesh）<br>
+    <br>
+    <strong>存储格式：</strong>base_mesh (M<sub>0</sub>) + vsplit_sequence [vs<sub>0</sub>, vs<sub>1</sub>, ..., vs<sub>n-1</sub>]<br>
+    每个 vsplit 记录：分裂哪个顶点、新顶点位置、新三角形的连接关系
+  </div>
+
+  <div class="note">
+    📌 <strong>两大应用优势：</strong><br>
+    ① <strong>高效存储</strong>：只需存 base mesh + vsplit 序列，比存储所有离散 LOD 层次大幅节省空间<br>
+    ② <strong>渐进式传输</strong>：网络传输时先发 base mesh（低分辨率）立即可用，再逐步发送 vsplit 序列精化细节（渐进式加载，用户体验好）
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>闭卷必背数字：</strong>Edge Collapse = 减少 <strong>2</strong> 个面；Vertex Split = 增加 <strong>2</strong> 个面。考试会直接问"从 M<sub>0</sub> 恢复高分辨率的操作是什么？"——答：连续执行 Vertex Split。
+  </div>
+</section>
+
+<!-- #selective-refinement -->
+<section class="section" id="selective-refinement">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>Selective Refinement（选择性细化）</h2>
+        <p class="lead">只对视点关注的局部区域进行高分辨率细化，其他区域保持低分辨率</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ Progressive Mesh 的扩展</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>核心思想：</strong>在大型模型中，不需要全局统一分辨率。近处/注视点附近用高精度，远处/视野边缘用低精度。这是 Progressive Mesh 的自然扩展——不同区域可以独立决定是否执行 vsplit。
+  </div>
+
+  <p class="mini-title">核心挑战：相邻区域的依赖关系</p>
+
+  <p>Mesh 相邻区域之间有强依赖关系，不能随意在某区域做 Vertex Split 而不影响邻居，否则会产生：</p>
+  <ul style="margin:8px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>T-junction（T 形连接）</strong>：高分辨率区域与低分辨率区域交界处的顶点不匹配</li>
+    <li><strong>Crack（裂缝）</strong>：相邻区域分辨率不一致导致网格出现缝隙</li>
+  </ul>
+
+  <p style="margin-top:12px;"><strong>解决方法：</strong>维护"半规则网格"或"适应性细化"结构，在边界处做特殊处理以消除裂缝和 T 形连接。根据视距、屏幕投影大小动态调整各区域的细化级别。</p>
+
+  <div class="warn">
+    ⚠️ <strong>考试角度：</strong>Selective Refinement 是 Progressive Mesh 的扩展应用，考试中通常作为 Progressive Mesh 题的加分点或延伸问法。理解"局部细化 vs 全局细化"的概念即可，不要求写出具体算法。
+  </div>
+</section>
+
+<!-- #quality-cost -->
+<section class="section" id="quality-cost">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>视觉质量与渲染代价的估计</h2>
+        <p class="lead">如何判断一个物体的 LOD 级别是否合适</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 影响因子判断</span>
+  </div>
+
+  <p class="mini-title">视觉质量影响因素</p>
+
+  <table>
+    <thead><tr><th>因素</th><th>影响逻辑</th></tr></thead>
+    <tbody>
+      <tr><td>物体的 LOD 级别（三角形数量）</td><td>三角形越多 → 视觉质量越高</td></tr>
+      <tr><td>物体到视点的距离</td><td>越远 → 屏幕投影越小 → 可以用更低精度</td></tr>
+      <tr><td>物体在屏幕上的投影尺寸</td><td>投影越小 → 所需精度越低</td></tr>
+      <tr><td>物体的运动速度</td><td>快速运动 → 人眼无法看清细节 → 可用低精度</td></tr>
+      <tr><td>物体与视线方向的角距离</td><td>偏离注视点 → 人眼不敏感 → 可降精度</td></tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">渲染代价估计</p>
+
+  <p>渲染代价主要由以下因素决定（从高到低影响）：</p>
+  <ul style="margin:8px 0 0 20px;font-size:14px;color:var(--ink);line-height:2">
+    <li><strong>三角形数量</strong>（主要因素，每帧 GPU 需处理的图元数）</li>
+    <li><strong>所用着色方法</strong>：Flat < Gouraud < Phong（每像素计算开销递增）</li>
+    <li><strong>纹理复杂度</strong>（纹理采样、过滤开销）</li>
+    <li><strong>阴影计算</strong>（Shadow Map 需额外渲染一遍，Shadow Volume 需生成阴影体几何）</li>
+  </ul>
+
+  <div class="warn">
+    ⚠️ <strong>考试角度：</strong>可能以判断题或选择题出现——"以下哪种情况下物体可以用较低 LOD？"正确选项通常指向：物体距离远 / 运动速度快 / 不在注视中心。
+  </div>
+</section>
+
+<!-- #shadows -->
+<section class="section" id="shadows">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>阴影技术</h2>
+        <p class="lead">Hard Shadow vs Soft Shadow；Shadow Volume（Stencil Buffer）vs Shadow Map（两遍渲染）</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考对比题</span>
+  </div>
+
+  <p class="mini-title">Hard Shadow vs Soft Shadow</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Hard Shadow（硬阴影）</h3>
+      <ul style="margin-top:8px;padding-left:20px;font-size:13px;color:var(--muted);line-height:2">
+        <li>阴影边界<strong>锐利</strong>，无过渡</li>
+        <li>由<strong>点光源</strong>产生</li>
+        <li>只有本影（Umbra），无半影</li>
+        <li>实现方法：Shadow Volume / Shadow Map</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Soft Shadow（软阴影）</h3>
+      <ul style="margin-top:8px;padding-left:20px;font-size:13px;color:var(--muted);line-height:2">
+        <li>阴影边界<strong>渐变</strong>，从暗到亮过渡</li>
+        <li>由<strong>面光源（Area Light）</strong>产生</li>
+        <li>包含本影（Umbra）+ 半影（Penumbra）</li>
+        <li>实现更复杂（多采样等）</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="mini-title">Shadow Volume（阴影体）</p>
+
+  <div class="pipeline">
+    <div class="pipe"><b>Step 1</b><span>以光源为视点，找到物体的<strong>轮廓边（Silhouette Edges）</strong></span></div>
+    <div class="pipe"><b>Step 2</b><span>从轮廓边向光源方向延伸，构建<strong>阴影锥体（Shadow Volume）</strong></span></div>
+    <div class="pipe"><b>Step 3</b><span><strong>Stencil Buffer 计数法</strong>：从视点向像素画线，穿过阴影体正面 +1，穿过背面 −1</span></div>
+    <div class="pipe"><b>Step 4</b><span>最终计数 > 0 → 像素在阴影中；计数 = 0 → 被光照亮</span></div>
+  </div>
+
+  <table>
+    <thead><tr><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr><td>阴影在屏幕空间<strong>完全精确</strong>（像素级，无走样）</td><td>需要额外处理阴影体几何，方法复杂</td></tr>
+      <tr><td></td><td>处理开放场景（光线离开场景）需要特殊处理</td></tr>
+      <tr><td></td><td>软阴影扩展困难</td></tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">Shadow Map（阴影贴图）</p>
+
+  <div class="pipeline">
+    <div class="pipe"><b>Pass 1</b><span>以<strong>光源</strong>为视点渲染整个场景，生成<strong>深度图（Shadow Map）</strong></span></div>
+    <div class="pipe"><b>Pass 2</b><span>从<strong>观察者</strong>视角正常渲染，对每个像素 P 变换到光源空间</span></div>
+    <div class="pipe"><b>判断</b><span>z<sub>P</sub> > z<sub>map</sub> → P 被遮挡（阴影中）；z<sub>P</sub> ≤ z<sub>map</sub> → P 可见（被照亮）</span></div>
+  </div>
+
+  <p class="mini-title">Shadow Volume vs Shadow Map —— 闭卷必背对比表</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>Shadow Volume</th><th>Shadow Map</th></tr></thead>
+    <tbody>
+      <tr><td><strong>精度</strong></td><td><span class="label green">像素精确（无走样）</span></td><td><span class="label orange">受 Shadow Map 分辨率限制（有走样）</span></td></tr>
+      <tr><td><strong>额外几何</strong></td><td>需要生成阴影体几何</td><td><span class="label green">无需额外几何</span></td></tr>
+      <tr><td><strong>实现复杂度</strong></td><td>较复杂（需处理边缘情况）</td><td><span class="label green">较简单（额外一次渲染）</span></td></tr>
+      <tr><td><strong>软阴影扩展</strong></td><td>困难</td><td><span class="label green">容易（多采样组合 Shadow Map）</span></td></tr>
+      <tr><td><strong>动态场景</strong></td><td>中（需更新阴影体）</td><td><span class="label green">高（每帧重新渲染 Shadow Map）</span></td></tr>
+      <tr><td><strong>适用场景</strong></td><td>静态场景，需要精确阴影</td><td>动态场景，游戏中广泛使用</td></tr>
+      <tr><td><strong>主要限制</strong></td><td>额外 Polygon 处理复杂</td><td><strong>走样（Aliasing）</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    📌 <strong>Shadow Map 走样的改进方法 —— Perspective Shadow Map（PSM）：</strong>先对场景从观察者角度做透视变换，使近处物体在 Shadow Map 中占据更多像素（更高分辨率），再生成 Shadow Map。这样近处物体的阴影更精确，远处物体的精度降低（但人眼不敏感）。
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试陷阱：</strong>Shadow Map 的主要限制是<strong>走样（Aliasing）</strong>，不是精度低。Shadow Volume 是像素精确的，但代价是需要额外构建几何体。这两种方法的 trade-off 是考试的经典考点。
+  </div>
+</section>
+
+<!-- #gpu-cpu -->
+<section class="section" id="gpu-cpu">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>GPU vs CPU</h2>
+        <p class="lead">数据级并行（同一操作不同数据）vs 任务级并行（流水线）</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 两种并行必考</span>
+  </div>
+
+  <p class="mini-title">CPU vs GPU 核心差异</p>
+
+  <table>
+    <thead><tr><th>对比维度</th><th>CPU</th><th>GPU</th></tr></thead>
+    <tbody>
+      <tr><td>核心数量</td><td>少量强大核心（4–64 个）</td><td><span class="label green">大量简单核心（数千个）</span></td></tr>
+      <tr><td>优化目标</td><td>低延迟（Latency-oriented）</td><td><span class="label green">高吞吐量（Throughput-oriented）</span></td></tr>
+      <tr><td>适合任务</td><td>控制密集型（Control-heavy）</td><td><span class="label green">数据密集型（Data-heavy）</span></td></tr>
+      <tr><td>数据级并行</td><td>弱</td><td><span class="label green">强（SIMD，同一操作作用于不同数据）</span></td></tr>
+      <tr><td>任务级并行</td><td>中（少量线程）</td><td><span class="label green">强（Pipeline 流水线，多阶段并发）</span></td></tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">GPU 的两种并行类型（闭卷必背）</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>数据级并行（Data-level Parallelism）</h3>
+      <p style="margin-bottom:6px"><span class="label">核心</span> 对不同数据执行<strong>相同操作</strong></p>
+      <p style="margin-bottom:6px"><span class="label green">例</span> 每个三角形可以独立处理，互不依赖</p>
+      <p><span class="label green">实现</span> GPU 将 10,000 个三角形分配给 10,000 个核心<strong>同时</strong>并行处理顶点变换</p>
+    </div>
+    <div class="card">
+      <h3>任务级并行（Task-level Parallelism）</h3>
+      <p style="margin-bottom:6px"><span class="label">核心</span> 对同一数据流的<strong>不同阶段并发执行</strong></p>
+      <p style="margin-bottom:6px"><span class="label green">例</span> 渲染管线分多个阶段，每阶段独立运行</p>
+      <p><span class="label green">实现</span> 顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧</p>
+    </div>
+  </div>
+
+  <div class="note">
+    📌 <strong>一句话记忆：</strong>数据级并行 = "同样的活，分给不同的人同时干"（三角形独立）；任务级并行 = "流水线，各工序同时干不同批次的活"（管线阶段重叠）。
+  </div>
+</section>
+
+<!-- #gpu-communication -->
+<section class="section" id="gpu-communication">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">7</div>
+      <div>
+        <h2>Efficient Communication</h2>
+        <p class="lead">GPU 不只要算得快，还要避免 CPU-GPU 之间频繁搬数据</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ Revision 明确列出</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>核心思想：</strong>GPU 的高吞吐优势只有在数据能连续留在 GPU 端处理时才明显。若每一步都要在 CPU 和 GPU 之间来回传输，通信开销会抵消并行计算收益。
+  </div>
+
+  <table>
+    <thead><tr><th>原则</th><th>考场解释</th><th>对应管线例子</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>批量传输</strong></td>
+        <td>一次传大量顶点/纹理数据，比频繁小块传输更高效</td>
+        <td>把 mesh buffer、texture buffer 预先上传到 GPU</td>
+      </tr>
+      <tr>
+        <td><strong>数据驻留</strong></td>
+        <td>中间结果尽量留在 GPU 内存，不反复读回 CPU</td>
+        <td>顶点处理、光栅化、片段处理在 GPU 流水线内连续完成</td>
+      </tr>
+      <tr>
+        <td><strong>减少同步</strong></td>
+        <td>CPU 等 GPU 或 GPU 等 CPU 都会破坏流水线并行</td>
+        <td>避免每帧等待单个 draw call 完成后再提交下一步</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="answer-box">
+    <strong>闭卷一句话：</strong>Efficient communication means minimizing data transfer and synchronization between CPU and GPU, keeping data on the GPU so data-level parallelism and pipeline/task-level parallelism can actually pay off.
+  </div>
+</section>
+
+<!-- #programmable-pipeline -->
+<section class="section" id="programmable-pipeline">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">8</div>
+      <div>
+        <h2>可编程 GPU 管线</h2>
+        <p class="lead">顶点着色器（几何变换、背面消除）→ 光栅化器（裁剪、插值）→ 片段着色器（Z-test、着色、纹理）</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 高频：三处理器职责</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>从固定功能到可编程：</strong>传统硬件图形管线（Fixed Function Pipeline）的所有阶段行为固定，开发者无法修改。可编程管线（Programmable Pipeline）引入着色器（Shader），开发者可自定义<strong>顶点处理</strong>和<strong>片段处理</strong>两个关键阶段的行为。
+  </div>
+
+  <p class="mini-title">三阶段职责划分（闭卷必背表）</p>
+
+  <table>
+    <thead><tr><th>处理器</th><th>可编程？</th><th>主要任务</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>顶点着色器<br>(Vertex Shader)</strong></td>
+        <td><span class="label green">可编程</span></td>
+        <td>
+          ① <strong>几何变换</strong>（模型/视图/投影矩阵变换）<br>
+          ② <strong>背面消除</strong>（Back-face Removal）<br>
+          ③ <strong>逐顶点光照计算</strong>（Gouraud Shading 在此）
+        </td>
+      </tr>
+      <tr>
+        <td><strong>光栅化器<br>(Rasterizer)</strong></td>
+        <td><span class="label red">固定功能</span></td>
+        <td>
+          ① <strong>裁剪</strong>（Clipping）<br>
+          ② 顶点表示 → 像素/片段（<strong>光栅化</strong>）<br>
+          ③ 对逐顶点属性（颜色、纹理坐标、法向量）在像素间<strong>插值</strong>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>片段着色器<br>(Fragment Shader)</strong></td>
+        <td><span class="label green">可编程</span></td>
+        <td>
+          ① <strong>深度测试</strong>（Z-test / Depth Comparison）<br>
+          ② <strong>逐像素颜色计算</strong>（Phong Shading 在此）<br>
+          ③ <strong>纹理采样</strong>（Texture Sampling / Lookup）
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>高频陷阱：</strong>注意区分两个着色器中的光照——<strong>Gouraud Shading</strong> 在<strong>顶点着色器</strong>（逐顶点计算光照），<strong>Phong Shading</strong> 在<strong>片段着色器</strong>（逐像素计算光照）。光栅化器是<strong>固定功能</strong>（不可编程），不要写错。
+  </div>
+
+  <div class="note">
+    📌 <strong>核心对应关系速记：</strong><br>
+    · 变换 / 背面消除 → <strong>顶点着色器</strong><br>
+    · 插值 → <strong>光栅化器</strong><br>
+    · Z-test / 着色 / 纹理 → <strong>片段着色器</strong>
+  </div>
+</section>
+
+<!-- #animation -->
+<section class="section" id="animation">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">9</div>
+      <div>
+        <h2>计算机动画三种方法</h2>
+        <p class="lead">Keyframe（关键帧）/ Procedural（过程动画）/ Motion Capture（动作捕捉）</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必考对比表</span>
+  </div>
+
+  <p class="mini-title">Keyframe Animation（关键帧动画）</p>
+  <p>动画师指定<strong>关键时刻（Keyframes）</strong>的物体状态（位置/旋转/缩放/颜色/光照），计算机通过<strong>插值</strong>（线性或样条如 Bezier、Catmull-Rom）自动生成中间帧（In-betweens）。</p>
+
+  <p class="mini-title">Procedural Animation（过程动画）</p>
+  <p>由<strong>算法/物理规则/模拟</strong>自动生成运动。典型应用：粒子系统（烟雾、火焰）、刚体动力学（碰撞响应）、群体行为（鸟群 Boids、人群模拟）。</p>
+
+  <p class="mini-title">Motion Capture（动作捕捉）</p>
+  <p>用传感器/摄像头记录真实运动者的<strong>3D 运动数据</strong>，映射到虚拟角色上。典型应用：电影特效（如 Gollum）、体育游戏（FIFA）、格斗游戏。</p>
+
+  <p class="mini-title">三种动画方式完整对比（闭卷必背表）</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>关键帧动画 (Keyframe)</th><th>过程动画 (Procedural)</th><th>动作捕捉 (Motion Capture)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>原理</strong></td>
+        <td>动画师设定关键时刻状态，计算机插值中间帧</td>
+        <td>用算法/规则/物理仿真自动生成运动</td>
+        <td>记录真实演员/物体的 3D 运动数据并应用到角色</td>
+      </tr>
+      <tr>
+        <td><strong>控制精度</strong></td>
+        <td><span class="label green">高（艺术家精确控制）</span></td>
+        <td><span class="label orange">低（由规则和初始条件决定）</span></td>
+        <td>中（记录真实动作，后期调整有限）</td>
+      </tr>
+      <tr>
+        <td><strong>真实感</strong></td>
+        <td>取决于动画师技能</td>
+        <td><span class="label green">高（物理仿真自然）</span></td>
+        <td><span class="label green">极高（真人动作数据）</span></td>
+      </tr>
+      <tr>
+        <td><strong>制作效率</strong></td>
+        <td><span class="label orange">低（手工设定关键帧）</span></td>
+        <td><span class="label green">高（算法自动生成）</span></td>
+        <td><span class="label green">高（实时录制）</span></td>
+      </tr>
+      <tr>
+        <td><strong>设备要求</strong></td>
+        <td>普通动画软件</td>
+        <td>物理引擎/粒子系统</td>
+        <td><span class="label red">专业动捕设备（昂贵）</span></td>
+      </tr>
+      <tr>
+        <td><strong>适用场景</strong></td>
+        <td>角色动画、表情动画、可控情节</td>
+        <td>布料模拟、流体、烟雾、群体</td>
+        <td>写实人物动作（格斗、运动员、表情捕捉）</td>
+      </tr>
+      <tr>
+        <td><strong>主导方式</strong></td>
+        <td><strong>艺术家主导</strong></td>
+        <td><strong>算法主导</strong>（规则/物理）</td>
+        <td><strong>真实数据驱动</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>考试角度：</strong>三种方式的核心区别——Keyframe → 艺术家主导；Procedural → 算法主导（规则/物理）；MoCap → 真实数据驱动。动捕技术细节考试不深究，了解概念和光学动捕（Optical MoCap）即可。
+  </div>
+</section>
+
+<!-- #templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div><h2>考场答案模板</h2></div>
+    </div>
+  </div>
+
+  <div class="mini-title">题型 1：GPU 可编程管线三处理器职责（P9-1）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>顶点着色器</strong>（可编程）：负责几何变换（模型/视图/投影矩阵）、背面消除（Back-face Removal）、逐顶点光照计算（Gouraud Shading）</p>
+    <p>② <strong>光栅化器</strong>（固定功能）：负责裁剪（Clipping）、顶点→片段转换、逐顶点属性插值（颜色/纹理坐标/法向量）</p>
+    <p>③ <strong>片段着色器</strong>（可编程）：负责深度测试（Z-test）、逐像素颜色计算（Phong Shading）、纹理采样</p>
+    <p>④ <strong>数据级并行</strong>：对不同数据执行相同操作——10,000 个三角形同时分配给 10,000 个核心并行处理</p>
+    <p>⑤ <strong>任务级并行</strong>：流水线模式——顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧</p>
+    <p>⑥ <strong>Efficient communication</strong>：减少 CPU-GPU 数据传输和同步，让数据留在 GPU 管线内连续处理。</p>
+  </div>
+
+  <div class="mini-title">题型 2：Efficient Communication 为什么重要</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① GPU 擅长高吞吐并行计算，但 CPU-GPU 通信相对昂贵。</p>
+    <p>② 若频繁把顶点、纹理或中间结果在 CPU 和 GPU 之间来回传输，会产生额外延迟，并破坏 GPU 流水线并行。</p>
+    <p>③ 高效策略是批量上传数据、让数据驻留在 GPU memory、尽量在 GPU 管线内部完成连续阶段，并减少同步等待。</p>
+    <p>④ 结论：efficient computation 依赖 data-level / task-level parallelism；efficient communication 保证这些并行收益不会被数据搬运抵消。</p>
+  </div>
+
+  <div class="mini-title">题型 3：Shadow Volume vs Shadow Map 对比（P9-2）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>Shadow Volume</strong>：从光源找到轮廓边 → 延伸构建阴影锥体 → Stencil Buffer 计数（正面+1，背面−1，最终>0 即阴影中）。<strong>精度：像素精确，无走样。限制：需要生成额外阴影体几何，复杂。</strong></p>
+    <p>② <strong>Shadow Map</strong>：Pass 1 从光源渲染深度图 → Pass 2 从观察者比较深度（z<sub>P</sub> > z<sub>map</sub> = 阴影）。<strong>精度：受 Shadow Map 分辨率限制。限制：走样（Aliasing），改进为 PSM。</strong></p>
+    <p>③ 游戏常用 Shadow Map（简单、适合动态场景）；精确需求用 Shadow Volume。</p>
+  </div>
+
+  <div class="mini-title">题型 4：三种计算机动画方式对比（P9-3）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>Keyframe</strong>（艺术家主导）：动画师设定关键状态，计算机插值。适合角色动画、表情动画。缺点：手工耗时。</p>
+    <p>② <strong>Procedural</strong>（算法主导）：物理规则/模拟驱动，自动生成运动。适合布料、流体、群体。缺点：难以精确控制。</p>
+    <p>③ <strong>Motion Capture</strong>（数据驱动）：记录真人 3D 运动数据。适合写实人物动作。缺点：设备昂贵。</p>
+  </div>
+
+  <div class="mini-title">题型 5：Progressive Mesh 操作与存储（P9-4）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>Edge Collapse</strong>：合并一条边的两个顶点 → 删除相邻 2 个三角形 → 面数<strong>减少 2</strong></p>
+    <p>② <strong>Vertex Split</strong>：分裂一个顶点为两个 → 新增 2 个三角形 → 面数<strong>增加 2</strong>（ecol 的逆操作）</p>
+    <p>③ <strong>存储格式</strong>：base_mesh (M<sub>0</sub>) + vsplit_sequence [vs<sub>0</sub>, vs<sub>1</sub>, ...]</p>
+    <p>④ <strong>优势</strong>：高效存储（只存 base mesh + 序列）、渐进式传输（先发低模立即可见，再发精化数据）</p>
+    <p>⑤ <strong>与 Discrete LOD 的区别</strong>：Progressive Mesh 提供<strong>连续 LOD</strong>（无 Popping），Discrete LOD 是离散级别切换（有跳变）</p>
+  </div>
+</section>
+
+<!-- #quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div><h2>自测题</h2></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>P9-1. GPU 可编程管线各阶段职责</summary>
+    <div class="detail-body">
+      <p>描述可编程 GPU 图形管线中，顶点着色器（Vertex Shader）、光栅化器（Rasterizer）和片段着色器（Fragment Shader）各自负责的主要任务，并解释 GPU 利用"数据级并行"和"任务级并行"提高效率的方式。</p>
+      <p class="mini-title">参考答案</p>
+      <table>
+        <thead><tr><th>处理器</th><th>可编程？</th><th>主要任务</th></tr></thead>
+        <tbody>
+          <tr><td>顶点着色器</td><td>可编程</td><td>几何变换、背面消除、逐顶点光照（Gouraud）</td></tr>
+          <tr><td>光栅化器</td><td>固定功能</td><td>裁剪、顶点→片段转换、逐顶点属性插值</td></tr>
+          <tr><td>片段着色器</td><td>可编程</td><td>深度测试、逐像素颜色计算（Phong Shading）、纹理采样</td></tr>
+        </tbody>
+      </table>
+      <p><strong>数据级并行：</strong>对不同数据执行相同操作——10,000 个三角形同时分配给 10,000 个核心并行处理。</p>
+      <p><strong>任务级并行：</strong>流水线模式——顶点着色器处理第 n 帧时，光栅化器处理第 n−1 帧，片段着色器处理第 n−2 帧。</p>
+      <div class="warn">⚠️ Gouraud Shading 在顶点着色器，Phong Shading 在片段着色器——不要搞混！</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>补充题. Efficient communication 在 GPU 渲染中为什么重要？</summary>
+    <div class="detail-body">
+      <p><strong>参考答案：</strong>GPU 的优势来自大量核心并行处理和图形管线流水线，但 CPU-GPU 之间传输数据和同步等待都很昂贵。如果每个阶段都把中间结果传回 CPU，再传回 GPU，通信开销会抵消 GPU 并行计算的收益。</p>
+      <p><strong>高效做法：</strong>批量上传顶点/纹理等数据；尽量让数据驻留在 GPU memory；把顶点处理、光栅化、片段处理放在 GPU 管线内连续完成；减少 CPU 等 GPU 或 GPU 等 CPU 的同步点。</p>
+      <p><strong>一句话：</strong>Efficient computation 让 GPU 算得快；efficient communication 保证 GPU 不把时间浪费在搬数据和等待上。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>P9-2. Shadow Volume vs Shadow Map 对比</summary>
+    <div class="detail-body">
+      <p>比较 Shadow Volume 和 Shadow Map 两种硬阴影生成方法的原理、精度、复杂度和主要限制。</p>
+      <p class="mini-title">参考答案</p>
+      <p><strong>Shadow Volume：</strong>从光源找到轮廓边 → 延伸构建阴影锥体 → Stencil Buffer 计数（正面+1，背面−1，最终>0=阴影中）。精度：像素精确（无走样）。限制：需生成额外阴影体几何，复杂。</p>
+      <p><strong>Shadow Map：</strong>Pass 1 从光源渲染深度图 → Pass 2 从观察者比较深度（z<sub>P</sub> > z<sub>map</sub> = 阴影）。精度：受 Shadow Map 分辨率限制（有走样）。改进：Perspective Shadow Map（PSM）。</p>
+      <table>
+        <thead><tr><th>维度</th><th>Shadow Volume</th><th>Shadow Map</th></tr></thead>
+        <tbody>
+          <tr><td>精度</td><td>像素精确</td><td>有走样</td></tr>
+          <tr><td>额外几何</td><td>需要阴影体</td><td>无需</td></tr>
+          <tr><td>复杂度</td><td>复杂</td><td>较简单</td></tr>
+          <tr><td>软阴影</td><td>困难</td><td>容易（多采样）</td></tr>
+          <tr><td>动态场景</td><td>中</td><td>高</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>P9-3. 三种计算机动画方式对比</summary>
+    <div class="detail-body">
+      <p>比较关键帧动画（Keyframe）、过程动画（Procedural Animation）和动作捕捉（Motion Capture）三种动画制作方式的原理、优缺点和适用场景。</p>
+      <p class="mini-title">参考答案</p>
+      <table>
+        <thead><tr><th>维度</th><th>Keyframe</th><th>Procedural</th><th>Motion Capture</th></tr></thead>
+        <tbody>
+          <tr><td>原理</td><td>动画师设关键状态，计算机插值</td><td>算法/物理规则模拟</td><td>记录真人 3D 运动数据</td></tr>
+          <tr><td>控制精度</td><td>高（艺术家精确控制）</td><td>低（规则决定）</td><td>中（后期调整有限）</td></tr>
+          <tr><td>真实感</td><td>取决于动画师</td><td>高（物理自然）</td><td>极高（真人数据）</td></tr>
+          <tr><td>效率</td><td>低（手工制作）</td><td>高（自动生成）</td><td>高（实时录制）</td></tr>
+          <tr><td>设备要求</td><td>普通动画软件</td><td>物理引擎</td><td>专业动捕设备（昂贵）</td></tr>
+          <tr><td>适用场景</td><td>角色动画、表情</td><td>布料、流体、烟雾、群体</td><td>写实人物动作</td></tr>
+          <tr><td>主导</td><td>艺术家主导</td><td>算法主导</td><td>数据驱动</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>P9-4. Progressive Mesh 的操作与存储</summary>
+    <div class="detail-body">
+      <p>解释 Edge Collapse 和 Vertex Split 操作的含义，说明 Progressive Mesh 如何利用这两个操作实现高效存储和渐进式网格传输。</p>
+      <p class="mini-title">参考答案</p>
+      <p><strong>Edge Collapse（边折叠）：</strong>将一条边的两个端点合并为一个顶点 → 相邻 2 个三角形被删除 → 面数<strong>减少 2</strong>，顶点数减少 1。表示为 M<sub>n</sub> →<sup>ecol</sup> M<sub>n-1</sub>。</p>
+      <p><strong>Vertex Split（顶点分裂）：</strong>将一个顶点分裂为两个相邻顶点，引入新边 → 新增<strong> 2 个三角形</strong> → 面数<strong>增加 2</strong>。表示为 M<sub>n-1</sub> →<sup>vsplit</sup> M<sub>n</sub>。是 Edge Collapse 的逆操作。</p>
+      <p><strong>Progressive Mesh 结构：</strong>M<sub>n</sub> → M<sub>n-1</sub> → ... → M<sub>1</sub> → M<sub>0</sub>（base mesh）。</p>
+      <p><strong>存储格式：</strong>base_mesh (M<sub>0</sub>) + vsplit_sequence [vs<sub>0</sub>, vs<sub>1</sub>, ..., vs<sub>n-1</sub>]</p>
+      <p><strong>两大应用优势：</strong></p>
+      <ul>
+        <li><strong>高效存储</strong>：base mesh + vsplit 序列比所有 LOD 层次省空间</li>
+        <li><strong>渐进式传输</strong>：先发低模立即可用，再逐步发送精化数据，用户体验好</li>
+      </ul>
+      <div class="note">📌 核心优势：<strong>连续 LOD</strong>（无跳变） + <strong>高效存储</strong>（base mesh + 操作序列）</div>
+    </div>
+  </details>
+</section>
+
+<!-- #final-recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div><h2>最后速记</h2></div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背定义与数字</p>
+      <ul class="checklist">
+        <li>Edge Collapse = 减少 <strong>2</strong> 个面；Vertex Split = 增加 <strong>2</strong> 个面</li>
+        <li>离散 LOD 缺点 = <strong>Popping</strong>（视觉跳变）</li>
+        <li>Progressive Mesh = <strong>连续 LOD</strong>，无跳变</li>
+        <li>存储格式 = <strong>base mesh + vsplit 序列</strong></li>
+        <li>Hard Shadow = 点光源；Soft Shadow = 面光源（含半影）</li>
+        <li>Shadow Map 主要限制 = <strong>走样（Aliasing）</strong></li>
+        <li>改进方法 = <strong>Perspective Shadow Map（PSM）</strong></li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>顶点着色器：变换、背面消除、<strong>Gouraud</strong>（逐顶点光照）</li>
+        <li>光栅化器：裁剪、<strong>插值</strong>（固定功能，不可编程）</li>
+        <li>片段着色器：Z-test、<strong>Phong Shading</strong>（逐像素光照）、纹理采样</li>
+        <li>数据级并行 = 同一操作不同数据（三角形独立）</li>
+        <li>任务级并行 = 流水线（各阶段同时处理不同帧）</li>
+        <li>Efficient communication = 减少 CPU-GPU 传输、同步和中间结果读回</li>
+        <li>Keyframe = 艺术家主导；Procedural = 算法主导；MoCap = 数据驱动</li>
+        <li>Selective Refinement 的挑战：T-junction 和 Crack</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · M09 实时渲染、GPU 与动画 · Semester B 2025/26
+</footer>
+
+</div><!-- .content -->
+</main>
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

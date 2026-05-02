@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M04 · 投影与裁剪</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --paper: #ffffff;
+  --ink: #172033;
+  --muted: #667085;
+  --soft: #eef4ff;
+  --blue: #155EEF;
+  --blue2: #003C88;
+  --red: #D7422A;
+  --green: #16803C;
+  --orange: #E86A00;
+  --purple: #6941C6;
+  --border: #d9e2ef;
+  --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08);
+  --radius: 18px;
+  --sidebar: 292px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 15px; line-height: 1.72; color: var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(21,94,239,.12), transparent 34%),
+    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 45%, #f7f8fb 100%);
+  min-height: 100vh;
+}
+
+/* ── pipeline ── */
+.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: 16px 0; }
+.pipe {
+  background: var(--soft); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 16px; text-align: center; min-width: 100px;
+}
+.pipe b { display: block; font-size: 13px; color: var(--blue); margin-bottom: 2px; }
+.pipe span { font-size: 12px; color: var(--muted); }
+.pipeline .arrow {
+  font-size: 18px; color: var(--muted); font-weight: 700;
+  padding: 0 6px;
+}
+
+/* ── grid layouts ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+.card {
+  background: rgba(255,255,255,.88); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 20px;
+}
+.card h3 { font-size: 14px; font-weight: 800; color: var(--blue2); margin-bottom: 8px; }
+.card p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+/* ── tables ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+thead th {
+  background: var(--soft); font-weight: 700; color: var(--blue2);
+  padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--border);
+  font-size: 12px; letter-spacing: .3px;
+}
+tbody td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border2);
+  vertical-align: top; line-height: 1.6;
+}
+tbody tr:hover { background: #fafbff; }
+
+/* ── code ── */
+pre {
+  background: #0f172a; color: #e2e8f0; padding: 18px 22px; border-radius: 12px;
+  overflow-x: auto; font-size: 13px; line-height: 1.65; margin: 12px 0;
+}
+pre code { font-family: "SFMono-Regular","Consolas","Menlo","Fira Code",monospace; }
+.kw { color: #7dd3fc; } .st { color: #86efac; } .nu { color: #fdba74; }
+.cm { color: #64748b; } .er { color: #fca5a5; } .ok { color: #86efac; }
+
+/* ── details (quiz) ── */
+details {
+  background: rgba(255,255,255,.88); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 0; margin-bottom: 12px;
+}
+details summary {
+  padding: 14px 18px; font-weight: 700; font-size: 14px; color: var(--ink);
+  cursor: pointer; user-select: none; list-style: none;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: "▸ "; color: var(--blue); font-weight: 800; }
+details[open] summary::before { content: "▾ "; }
+.detail-body { padding: 0 18px 16px; font-size: 14px; color: var(--ink); line-height: 1.7; }
+
+/* ── mini-title ── */
+.mini-title {
+  font-size: 13px; font-weight: 700; color: var(--blue); text-transform: uppercase;
+  letter-spacing: .8px; margin: 20px 0 8px;
+}
+
+/* ── quick / checklist ── */
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px; }
+.checklist { list-style: none; padding: 0; }
+.checklist li {
+  padding: 6px 0 6px 22px; position: relative; font-size: 14px; color: var(--ink);
+}
+.checklist li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+
+/* ── outline table ── */
+.outline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <a class="back-link" href="index.html">← 返回首页</a>
+    <div class="mod-id">
+      <span class="badge-cs">CS5182</span>
+      <h2>M04 · 投影与裁剪</h2>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">内容导航</div>
+      <a class="nav-link" href="#roadmap"><span class="nav-num">00</span>总览与考试定位</a>
+      <a class="nav-link" href="#projection-basics"><span class="nav-num">01</span>投影三要素</a>
+      <a class="nav-link" href="#parallel"><span class="nav-num">02</span>平行投影</a>
+      <a class="nav-link" href="#perspective"><span class="nav-num">03</span>透视投影</a>
+      <a class="nav-link" href="#perspective-transform"><span class="nav-num">04</span>透视变换的优势</a>
+      <a class="nav-link" href="#cop-effect"><span class="nav-num">05</span>COP 移动的效果分析</a>
+      <a class="nav-link" href="#cohen-sutherland"><span class="nav-num">06</span>Cohen-Sutherland</a>
+      <a class="nav-link" href="#sutherland-hodgman"><span class="nav-num">07</span>Sutherland-Hodgman</a>
+      <div class="nav-label">考试输出</div>
+      <a class="nav-link" href="#templates"><span class="nav-num">✍</span>考场答案模板</a>
+      <a class="nav-link" href="#quiz"><span class="nav-num">?</span>自测题</a>
+      <a class="nav-link" href="#final-recall"><span class="nav-num">✓</span>最后速记</a>
+    </nav>
+  </aside>
+
+  <!-- main -->
+  <main class="main">
+
+    <!-- hero -->
+    <header class="hero">
+      <div class="kicker">MODULE 4 · CS5182 Final Sprint</div>
+      <h2>投影与裁剪</h2>
+      <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计——从投影三要素到两种裁剪算法，每个知识点都配有考试角度提示和可直接套用的答案模板。</p>
+      <div class="hero-grid">
+        <div class="hero-stat"><b>8</b><span>核心知识块</span></div>
+        <div class="hero-stat"><b>12+</b><span>高频考法</span></div>
+        <div class="hero-stat"><b>3</b><span>真题覆盖</span></div>
+        <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- module-entry -->
+      <section class="section module-entry">
+        <div class="entry-grid">
+          <article class="concept-card">
+            <h3>本章定位</h3>
+            <p>将 3D 场景映射到 2D 平面（投影），并裁掉视锥体之外的部分（裁剪）。是管线中 World Space → Screen Space 的关键桥接模块。</p>
+          </article>
+          <article class="concept-card">
+            <h3>前置知识</h3>
+            <p><strong>M03 几何变换</strong> — 齐次坐标、4×4 矩阵乘法、三步技巧。透视投影矩阵的推导直接依赖齐次坐标。</p>
+          </article>
+          <article class="concept-card">
+            <h3>本章产出</h3>
+            <p>能写出透视投影矩阵、手算 Cohen-Sutherland 编码、描述 S-H 算法 4 种 case、解释 COP 移动对透视效果的影响。</p>
+          </article>
+          <article class="concept-card">
+            <h3>高频考法</h3>
+            <p>COP 移远时 foreshortening/消失点/深度感变化（Q6）；Cohen-Sutherland 编码计算；S-H 算法 4 种 case 输出规则。</p>
+          </article>
+        </div>
+        <div class="bridge-note">
+          <strong>学习衔接：</strong>M03 几何变换 → <strong>M04 投影与裁剪</strong> → M05 隐藏面消除
+        </div>
+      </section>
+
+      <!-- Section 0: 总览与考试定位 -->
+      <section class="section" id="roadmap">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">0</div>
+            <div>
+              <h2>总览与考试定位</h2>
+              <p class="lead">M04 在渲染管线中的位置、出题比重与题型分布</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 考试定位</span>
+        </div>
+
+        <div class="outline-grid" style="margin-top:20px;">
+          <div>
+            <p class="mini-title">期中考已覆盖（Q1/Q2/Q6）</p>
+            <ul class="checklist">
+              <li>Q1: S-H 算法泛化到球形裁剪</li>
+              <li>Q2: 透视变换后裁剪的输出图形</li>
+              <li>Q6: COP 移动对透视效果的影响</li>
+            </ul>
+          </div>
+          <div>
+            <p class="mini-title">期末变形方向</p>
+            <ul class="checklist">
+              <li>S-H 4 种 case 具体顶点输出</li>
+              <li>Cohen-Sutherland 编码判断</li>
+              <li>透视投影矩阵推导</li>
+              <li>一点/两点/三点透视判断</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 1: 投影三要素 -->
+      <!-- =============================== -->
+      <section class="section" id="projection-basics">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">1</div>
+            <div>
+              <h2>投影三要素</h2>
+              <p class="lead">COP、Projector、Projection Plane — 所有投影的基础概念</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 定义题必背</span>
+        </div>
+
+        <div class="note">
+          <strong>投影</strong>是将 3D 场景映射到 2D 平面的过程，由三个核心元素定义。理解这三个要素是区分平行投影和透视投影的关键。
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>要素</th><th>英文</th><th>含义</th><th>平行投影中</th><th>透视投影中</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>投影中心</strong></td>
+              <td>COP (Center of Projection)</td>
+              <td>所有投影线汇聚的点</td>
+              <td><span class="label">无穷远</span></td>
+              <td><span class="label orange">有限距离</span></td>
+            </tr>
+            <tr>
+              <td><strong>投影线</strong></td>
+              <td>Projector</td>
+              <td>从 COP 出发穿过物体点的射线</td>
+              <td>互相平行</td>
+              <td>汇聚于 COP</td>
+            </tr>
+            <tr>
+              <td><strong>投影面</strong></td>
+              <td>Projection Plane</td>
+              <td>投影线与该平面的交点构成投影图像</td>
+              <td>通常垂直于投影线</td>
+              <td>任意位置均可</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warn">
+          <strong>考试陷阱：</strong>COP 在无穷远 → 平行投影（projector 互相平行）；COP 在有限距离 → 透视投影（projector 汇聚）。这是区分两种投影的根本标准。
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 2: 平行投影 -->
+      <!-- =============================== -->
+      <section class="section" id="parallel">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">2</div>
+            <div>
+              <h2>平行投影</h2>
+              <p class="lead">正交投影矩阵、斜投影概念</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 矩阵必记</span>
+        </div>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin-bottom:8px;">正交投影 (Orthographic Projection)</h3>
+
+        <div class="note">
+          <strong>定义：</strong>投影线垂直于投影面（COP 在无穷远），保留平行线关系但无深度感（无近大远小）。
+        </div>
+
+        <p>设观察者在原点，投影面在 <strong>z = d</strong>，平行于 XY 平面：</p>
+
+        <div class="formula">
+          x' = x, &nbsp;&nbsp; y' = y, &nbsp;&nbsp; z' = d
+        </div>
+
+        <p><strong>投影矩阵（4×4 齐次坐标）：</strong></p>
+
+        <div class="formula">
+          | 1  0  0  0 |<br>
+          | 0  1  0  0 |<br>
+          | 0  0  0  d |<br>
+          | 0  0  0  1 |
+        </div>
+
+        <div class="warn">
+          <strong>注意：</strong>正交投影矩阵第三行是 <code>(0,0,0,d)</code>，不是 <code>(0,0,1,0)</code>。它强制所有点的 z 坐标变为 d，丢弃了深度信息。
+        </div>
+
+        <div class="grid-2" style="margin-top:20px;">
+          <div class="card">
+            <h3>正交投影特点</h3>
+            <p>✓ 平行线保持平行<br>✓ 无近大远小效果<br>✓ 工程制图、CAD 常用<br>✓ 适合精确测量</p>
+          </div>
+          <div class="card">
+            <h3>斜投影 (Oblique Projection)</h3>
+            <p>投影线与投影面<strong>不垂直</strong>（但仍为平行投影）。<br>不如正交/透视重要，了解概念和与正交投影的区别即可。</p>
+          </div>
+        </div>
+
+        <div class="exam">
+          <strong>考试角度：</strong>正交投影保持平行线平行，无近大远小效果。这是与透视投影最核心的区别。
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 3: 透视投影 -->
+      <!-- =============================== -->
+      <section class="section" id="perspective">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">3</div>
+            <div>
+              <h2>透视投影</h2>
+              <p class="lead">消失点、投影矩阵推导、一点/两点/三点透视</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 核心考点</span>
+        </div>
+
+        <div class="note">
+          <strong>定义：</strong>透视投影（Perspective Projection）是 COP 在有限距离处，所有投影线汇聚于 COP 的投影，呈现<strong>近大远小</strong>的深度感。
+        </div>
+
+        <!-- 消失点 -->
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">消失点 (Vanishing Points)</h3>
+
+        <div class="note">
+          任何<strong>不平行于投影面</strong>的平行线组都汇聚到同一个消失点。消失点的数量由投影面与坐标轴的关系决定。
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>类型</th><th>投影面方向</th><th>消失点数</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="label">一点透视</span></td>
+              <td>平行于两个坐标面（如平行于 XY 平面，即垂直于 Z 轴）</td>
+              <td><strong>1</strong></td>
+              <td>只有 z 方向线汇聚到消失点</td>
+            </tr>
+            <tr>
+              <td><span class="label orange">两点透视</span></td>
+              <td>平行于恰好一个坐标轴（如平行于 Y 轴）</td>
+              <td><strong>2</strong></td>
+              <td>x 和 z 方向线各有一个消失点</td>
+            </tr>
+            <tr>
+              <td><span class="label red">三点透视</span></td>
+              <td>不平行于任何坐标面</td>
+              <td><strong>3</strong></td>
+              <td>三个主轴方向各有一个消失点</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 投影矩阵 -->
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">透视投影矩阵推导</h3>
+
+        <p>设观察者在原点 <strong>(0,0,0)</strong>，投影面在 <strong>z = d</strong>，由相似三角形：</p>
+
+        <div class="formula">
+          x' = d · x / z, &nbsp;&nbsp; y' = d · y / z, &nbsp;&nbsp; z' = d
+        </div>
+
+        <p>用齐次坐标将"除以 z"的非线性操作转化为线性矩阵乘法 + 最后除以第四分量：</p>
+
+        <div class="formula">
+          | 1   0   0   0 | &nbsp; | x | &nbsp; &nbsp; | &nbsp;x &nbsp; |<br>
+          | 0   1   0   0 | &nbsp; | y | &nbsp; = &nbsp; | &nbsp;y &nbsp; |<br>
+          | 0   0   1   0 | &nbsp; | z | &nbsp; &nbsp; | &nbsp;z &nbsp; |<br>
+          | 0   0  1/d  0 | &nbsp; | 1 | &nbsp; &nbsp; | z/d |
+        </div>
+
+        <p>最终坐标：除以 h = z/d → <strong>x' = dx/z, y' = dy/z, z' = d</strong></p>
+
+        <div class="warn">
+          <strong>关键：</strong>第四行 <code>(0, 0, 1/d, 0)</code> 使得 h = z/d，从而实现除以 z 的透视效果。这是透视投影矩阵最核心的特征行！
+        </div>
+
+        <div class="exam">
+          <strong>区分透视变换 vs 透视投影：</strong><br>
+          · <strong>透视变换</strong>（Perspective Transformation）：保留 z' = z（保留深度），用于管线中后续操作（裁剪、背面消除）<br>
+          · <strong>透视投影</strong>（Perspective Projection）：z' = d（丢弃深度），输出 2D 图像<br>
+          考试经常把两者放在一起考，必须区分清楚！
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 4: 透视变换的优势 -->
+      <!-- =============================== -->
+      <section class="section" id="perspective-transform">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">4</div>
+            <div>
+              <h2>透视变换的优势</h2>
+              <p class="lead">为何先透视变换再裁剪？z 不变带来的三大好处</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 管线设计高频考点</span>
+        </div>
+
+        <div class="note">
+          <strong>核心思路：</strong>透视<strong>变换</strong>保留 z 坐标不变（z' = z），将视锥体（frustum）变为轴对齐长方体（parallelepiped）。这为后续管线阶段带来了三个关键优势。
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>优势</th><th>说明</th><th>考试关键词</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Back-face Removal 简化</strong></td>
+              <td>变换后投影变为平行投影，只需检查法向量 z 分量正负（本页约定 n<sub>z</sub> > 0 → 背面）</td>
+              <td><span class="label green">n<sub>z</sub> 判断</span></td>
+            </tr>
+            <tr>
+              <td><strong>Clipping 简化</strong></td>
+              <td>6 个裁剪平面变为平行于坐标轴的平面：x=±A, y=±B, z=d, z=C<br>裁剪退化为简单的坐标比较（2D 边界检查）</td>
+              <td><span class="label green">轴对齐裁剪</span></td>
+            </tr>
+            <tr>
+              <td><strong>深度排序可用</strong></td>
+              <td>Z-buffer 可以利用保留的 z 值做深度比较</td>
+              <td><span class="label green">深度保留</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="pipeline">
+          <div class="pipe"><b>Perspective Transformation</b><span>frustum → 长方体</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>Back-face Removal</b><span>n<sub>z</sub> 正负判断</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>Clipping</b><span>轴对齐 2D 比较</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>Rasterization</b><span>Screen Space</span></div>
+        </div>
+
+        <div class="warn">
+          <strong>管线设计考点：</strong>"为何先透视变换再裁剪？"——答：变换后裁剪平面从任意方向的平面变为轴对齐平面（x=±A, y=±B, z=d, z=C），大大简化了裁剪算法（从 3D 求交退化为 2D 边界比较）。这是考试必背的逻辑。
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 5: COP 移动的效果分析 -->
+      <!-- =============================== -->
+      <section class="section" id="cop-effect">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">5</div>
+            <div>
+              <h2>COP 移动的效果分析</h2>
+              <p class="lead">Q6 考点 — foreshortening、消失点间距、深度感三个维度的变化</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ Q6 核心考点</span>
+        </div>
+
+        <div class="note">
+          <strong>Q6 原题：</strong>If you move the COP further away from the projection plane while keeping the object in the same position, how does this affect the "Foreshortening" effect and the distance between vanishing points? How would this change the "depth sensation" of the viewer?
+        </div>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 12px;">COP 移远时（d 增大）三个效果</h3>
+
+        <table>
+          <thead>
+            <tr><th>效果维度</th><th>变化方向</th><th>原因</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Foreshortening（透视缩短）</strong></td>
+              <td><span class="label red">减弱 ↓</span></td>
+              <td>物体前后面到 COP 的相对距离差比例变小 → 近大远小效果弱化</td>
+            </tr>
+            <tr>
+              <td><strong>消失点间距</strong></td>
+              <td><span class="label orange">增大 ↑</span></td>
+              <td>消失点彼此间距变大，向无穷远处扩散</td>
+            </tr>
+            <tr>
+              <td><strong>Depth Sensation（深度感）</strong></td>
+              <td><span class="label red">减弱 ↓</span></td>
+              <td>画面趋近于平行投影效果——物体大小不再随距离明显缩小</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="formula">
+          <strong>极限情况：COP → ∞</strong><br>
+          → 投影线变为互相平行<br>
+          → 消失点消失<br>
+          → 透视投影退化为<strong>正交投影（Orthographic Projection）</strong>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="card">
+            <h3>COP 移远（d ↑）</h3>
+            <p>Foreshortening <span class="label red">↓ 减弱</span><br>
+            消失点间距 <span class="label orange">↑ 增大</span><br>
+            深度感 <span class="label red">↓ 减弱</span><br>
+            趋向正交投影</p>
+          </div>
+          <div class="card">
+            <h3>COP 移近（d ↓）</h3>
+            <p>Foreshortening <span class="label green">↑ 增强</span><br>
+            消失点间距 <span class="label red">↓ 减小</span><br>
+            深度感 <span class="label green">↑ 增强</span><br>
+            透视变形更夸张</p>
+          </div>
+        </div>
+
+        <div class="warn">
+          <strong>考试陷阱：</strong>期末可能反向问"COP 移近时"的效果（三个方向全部相反），或问"平行投影和透视投影各自的优缺点"。核心逻辑不变：COP → ∞ 就是正交投影。
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 6: Cohen-Sutherland -->
+      <!-- =============================== -->
+      <section class="section" id="cohen-sutherland">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">6</div>
+            <div>
+              <h2>Cohen-Sutherland 线段裁剪</h2>
+              <p class="lead">4 位区域码编码规则、Accept/Reject/分割三步判断</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 编码计算题</span>
+        </div>
+
+        <div class="note">
+          <strong>定义：</strong>通过给线段两端点分配 4 位区域码（outcode），快速判断线段是否完全在裁剪窗口内、完全在外或需要求交裁剪。
+        </div>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">4 位编码规则（TBRL：上|下|右|左）</h3>
+
+        <table>
+          <thead>
+            <tr><th>位位置</th><th>条件</th><th>含义</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>bit 4（最高位）</td><td>y > y<sub>max</sub></td><td><span class="label red">上 (Top)</span></td></tr>
+            <tr><td>bit 3</td><td>y < y<sub>min</sub></td><td><span class="label orange">下 (Bottom)</span></td></tr>
+            <tr><td>bit 2</td><td>x > x<sub>max</sub></td><td><span class="label purple">右 (Right)</span></td></tr>
+            <tr><td>bit 1（最低位）</td><td>x < x<sub>min</sub></td><td><span class="label">左 (Left)</span></td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">9 区域分布图</h3>
+
+        <div class="formula">
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;|&nbsp;&nbsp;1000&nbsp;&nbsp;|&nbsp;&nbsp;1010<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------|------|------<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0001&nbsp;&nbsp;|&nbsp;&nbsp;<strong>0000</strong>&nbsp;&nbsp;|&nbsp;&nbsp;0010<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------|------|------<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0101&nbsp;&nbsp;|&nbsp;&nbsp;0100&nbsp;&nbsp;|&nbsp;&nbsp;0110
+        </div>
+        <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:4px;">中央 0000 = 裁剪窗口内部</p>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">三步判断规则</h3>
+
+        <table>
+          <thead>
+            <tr><th>判断</th><th>条件</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="label green">Trivial Accept</span></td>
+              <td>两端码 OR = 0000（两端均为 0000）</td>
+              <td>直接接受，整条线段在窗口内</td>
+            </tr>
+            <tr>
+              <td><span class="label red">Trivial Reject</span></td>
+              <td>两端码 AND ≠ 0000（至少有一位同为 1）</td>
+              <td>直接拒绝，线段完全在某侧外部</td>
+            </tr>
+            <tr>
+              <td><span class="label orange">需分割裁剪</span></td>
+              <td>AND = 0000 但 OR ≠ 0000</td>
+              <td>找到非零位 → 计算交点 → 替换端点 → 重新判断</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warn">
+          <strong>高频陷阱：</strong><br>
+          ① Trivial Reject 条件是 AND ≠ 0（两端<strong>同时在</strong>某侧外部），不是 OR ≠ 0！<br>
+          ② 位顺序必须记牢：<strong>上→下→右→左（TBRL）</strong>，不能搞乱。<br>
+          ③ 常考：给三个线段（全内/全外/需裁剪），分别用编码判断。
+        </div>
+
+        <div class="answer-box">
+          <strong>熟练判断口诀：</strong><br>
+          · OR = 0000 → <strong>Accept</strong>（全在内部）<br>
+          · AND ≠ 0000 → <strong>Reject</strong>（全在外部某侧）<br>
+          · 其他 → <strong>求交裁剪</strong>（逐个边计算交点）
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 7: Sutherland-Hodgman -->
+      <!-- =============================== -->
+      <section class="section" id="sutherland-hodgman">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">7</div>
+            <div>
+              <h2>Sutherland-Hodgman 多边形裁剪</h2>
+              <p class="lead">逐边裁剪流程、4 种 case 输出规则、考试变形方向</p>
+            </div>
+          </div>
+          <span class="exam-chip">⚡ 流程画图题</span>
+        </div>
+
+        <div class="note">
+          <strong>定义：</strong>Sutherland-Hodgman 算法通过逐边裁剪（每次针对裁剪窗口的一条边），逐步裁剪多边形，每轮输出一个新多边形顶点列表。
+        </div>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">算法流程</h3>
+
+        <div class="pipeline">
+          <div class="pipe"><b>输入多边形</b><span>顶点序列</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>裁剪上边</b><span>输出新顶点列表</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>裁剪下边</b><span>输出新顶点列表</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>裁剪左边</b><span>输出新顶点列表</span></div>
+          <span class="arrow">→</span>
+          <div class="pipe"><b>裁剪右边</b><span>最终多边形</span></div>
+        </div>
+
+        <h3 style="font-size:16px;font-weight:800;color:var(--blue2);margin:20px 0 8px;">4 种 Case 输出规则（超高频！）</h3>
+
+        <p>对每对相邻顶点（当前点 <strong>S</strong>，下一点 <strong>P</strong>）：</p>
+
+        <table>
+          <thead>
+            <tr><th>Case</th><th>S 位置</th><th>P 位置</th><th>输出顶点</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="label green">Case 1</span></td>
+              <td><span class="label red">外</span></td>
+              <td><span class="label green">内</span></td>
+              <td><strong>[交点, P]</strong></td>
+              <td>线段从外进入窗口：输出交点和新端点 P</td>
+            </tr>
+            <tr>
+              <td><span class="label green">Case 2</span></td>
+              <td><span class="label green">内</span></td>
+              <td><span class="label green">内</span></td>
+              <td><strong>[P]</strong></td>
+              <td>线段完全在窗口内：只输出新端点 P</td>
+            </tr>
+            <tr>
+              <td><span class="label orange">Case 3</span></td>
+              <td><span class="label green">内</span></td>
+              <td><span class="label red">外</span></td>
+              <td><strong>[交点]</strong></td>
+              <td>线段从内离开窗口：只输出交点</td>
+            </tr>
+            <tr>
+              <td><span class="label red">Case 4</span></td>
+              <td><span class="label red">外</span></td>
+              <td><span class="label red">外</span></td>
+              <td><strong>[]（无输出）</strong></td>
+              <td>线段完全在窗口外：不输出任何点</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="answer-box">
+          <strong>记忆口诀：</strong><br>
+          · 外→内：交点 + P（进入窗口）<br>
+          · 内→内：P（全在内部）<br>
+          · 内→外：交点（离开窗口）<br>
+          · 外→外：无（全在外部）<br>
+          核心逻辑：<strong>只保留在窗口内的部分 + 进出口的交点</strong>
+        </div>
+
+        <div class="warn">
+          <strong>考试变形方向：</strong><br>
+          ① 不要只背球形裁剪原题；更应掌握"给定多边形和矩形裁剪窗口，画出每轮裁剪后的顶点变化"<br>
+          ② 给具体顶点坐标，要求写出每轮裁剪的输出顶点列表<br>
+          ③ 对圆形裁剪区域：将圆近似为多边形（如 12 边形），再逐边裁剪
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 8: 考场答案模板 -->
+      <!-- =============================== -->
+      <section class="section" id="templates">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">✍</div>
+            <div>
+              <h2>考场答案模板</h2>
+              <p class="lead">针对高频题型，闭卷可以直接套用的答案框架</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-title">模板 01：透视投影的工作原理（"Explain how perspective projection works"）</div>
+        <div class="answer-box">
+          <p><strong>答案框架（考场直接按此顺序写）：</strong></p>
+          <p>① <strong>定义</strong>：透视投影将 3D 空间中的点映射到 2D 投影平面，呈现<strong>近大远小</strong>效果，COP 在有限距离处。</p>
+          <p>② <strong>三要素</strong>：<strong>COP</strong>（投影中心，所有投影线汇聚处）、<strong>Projector</strong>（从 COP 穿过物体的投影线）、<strong>Projection Plane</strong>（投影平面）。</p>
+          <p>③ <strong>消失点</strong>：不平行于投影平面的平行线组汇聚至<strong>消失点（Vanishing Point）</strong>。投影面平行于两坐标轴 → 1-point；平行于一轴 → 2-point；不平行任何轴 → 3-point。</p>
+          <p>④ <strong>投影公式</strong>：x' = d·x/z，y' = d·y/z（d 为投影面距 COP 的距离）。</p>
+          <p>⑤ <strong>矩阵关键特性</strong>：用齐次坐标表示，第四行为 (0, 0, 1/d, 0)，使 h = z/d，最终坐标除以 h 实现"除以 z"的非线性操作。</p>
+          <p>⑥ <strong>送分点</strong>：区分<strong>透视变换</strong>（保留 z'=z）与<strong>透视投影</strong>（z'=d，丢弃深度）。</p>
+        </div>
+
+        <div class="mini-title" style="margin-top:24px;">模板 02：COP 移动对透视效果的影响（Q6 类题）</div>
+        <div class="answer-box">
+          <p><strong>答案框架：</strong></p>
+          <p>① <strong>Foreshortening（透视缩短）</strong>：COP 越远，物体前后面到摄像机的相对距离差比例越小 → 透视缩短效果<strong>减弱</strong>，物体前后面大小趋于一致。</p>
+          <p>② <strong>Vanishing Points（消失点）距离</strong>：消失点彼此间距<strong>变大</strong>，向无穷远处扩散。COP → ∞ 时消失点消失，退化为平行投影。</p>
+          <p>③ <strong>Depth Sensation（深度感）</strong>：深度感<strong>减弱</strong>，画面趋近于<strong>平行投影（Orthographic Projection）</strong>效果——物体大小不再随距离明显缩小。</p>
+          <p>④ <strong>结论</strong>：COP → ∞ 时就是正交投影——这是理解这道题的核心逻辑。</p>
+        </div>
+
+        <div class="mini-title" style="margin-top:24px;">模板 03：Cohen-Sutherland 编码判断（计算题）</div>
+        <div class="answer-box">
+          <p><strong>答题步骤：</strong></p>
+          <p>① 写出 4 位编码规则：TBRL（上|下|右|左），bit 4=上, bit 3=下, bit 2=右, bit 1=左。</p>
+          <p>② 计算两端点区域码（逐个位判断）。</p>
+          <p>③ 三步判断：OR=0 → Accept；AND≠0 → Reject；其他 → 求交裁剪。</p>
+          <p>④ 如需裁剪：找非零位 → 计算交点 → 替换端点 → 重复判断。</p>
+        </div>
+
+        <div class="mini-title" style="margin-top:24px;">模板 04：Sutherland-Hodgman 4 种 case（流程题）</div>
+        <div class="answer-box">
+          <p><strong>答题步骤：</strong></p>
+          <p>① 写出 4 种 case：外→内（交点+P）、内→内（P）、内→外（交点）、外→外（无）。</p>
+          <p>② 画裁剪窗口，标注每条边的裁剪方向。</p>
+          <p>③ 逐边列出输入顶点 → 输出顶点（每轮输出作为下一轮输入）。</p>
+          <p>④ 画出最终裁剪后的多边形。</p>
+        </div>
+
+        <div class="mini-title" style="margin-top:24px;">模板 05：非矩形裁剪区域的处理思路</div>
+        <div class="answer-box">
+          <p><strong>适用题型：</strong>球形、圆形或曲线边界裁剪区域，不要求背一个新算法。</p>
+          <p>① <strong>先说明困难：</strong>标准 Cohen-Sutherland 和 Sutherland-Hodgman 面向矩形/多边形边界，不能直接套到曲面边界。</p>
+          <p>② <strong>可行思路 A：</strong>把曲线/曲面边界离散采样，近似成多边形/多面体，再用多边形裁剪流程逐边处理。</p>
+          <p>③ <strong>可行思路 B：</strong>直接用裁剪面/裁剪曲面的方程做 inside/outside 测试，并在跨越边界处求交点。</p>
+          <p>④ <strong>考场结论：</strong>本质仍是判断 inside/outside + 保留内部部分 + 计算边界交点。</p>
+        </div>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 9: 自测题 -->
+      <!-- =============================== -->
+      <section class="section" id="quiz">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">?</div>
+            <div>
+              <h2>自测题</h2>
+              <p class="lead">基于 P4-1、P4-2 及 Q6 改编，覆盖投影矩阵推导和 Cohen-Sutherland 编码</p>
+            </div>
+          </div>
+        </div>
+
+        <details>
+          <summary>Q1 (P4-1 改编). 推导透视投影矩阵并解释除以 z 的处理方式</summary>
+          <div class="detail-body">
+            <p><strong>参考答案：</strong></p>
+            <p>设观察者（COP）在原点 (0,0,0)，投影平面在 z = d，平行于 XY 平面。</p>
+            <p><strong>几何推导（相似三角形）：</strong><br>
+            对于空间中点 (x, y, z)，投影点在 z=d 平面上：<br>
+            x' = d·x/z, &nbsp; y' = d·y/z, &nbsp; z' = d</p>
+            <p><strong>齐次坐标处理：</strong><br>
+            直接表达式非线性（z 在分母），通过引入第四分量 h = z/d：<br>
+            矩阵乘法产生 (x, y, z, z/d)ᵀ，然后除以 h = z/d 恢复笛卡尔坐标。</p>
+            <p><strong>透视投影矩阵：</strong></p>
+            <pre><code>| 1   0   0   0 |
+| 0   1   0   0 |
+| 0   0   1   0 |
+| 0   0  1/d  0 |</code></pre>
+            <p>第四行 (0,0,1/d,0) 是关键——它使 h = z/d，从而实现透视效果。</p>
+            <p><strong>区分：</strong>这是透视<strong>投影</strong>矩阵（z'=d，丢弃深度），与透视<strong>变换</strong>矩阵（z'=z，保留深度）不同。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q2 (P4-2 改编). Cohen-Sutherland 线段裁剪判断</summary>
+          <div class="detail-body">
+            <p>裁剪窗口：x<sub>min</sub>=1, x<sub>max</sub>=5, y<sub>min</sub>=1, y<sub>max</sub>=4</p>
+            <p><strong>(a) 线段 AB：A(3,2), B(4,3)</strong><br>
+            A: 全在窗口内 → code_A = 0000<br>
+            B: 全在窗口内 → code_B = 0000<br>
+            code_A OR code_B = 0000 → <strong>Trivial Accept（直接接受）</strong></p>
+            <p><strong>(b) 线段 CD：C(0,0), D(0,5)</strong><br>
+            C(0,0): x&lt;1→bit1=1, y&lt;1→bit3=1 → code_C = 0101<br>
+            D(0,5): x&lt;1→bit1=1, y&gt;4→bit4=1 → code_D = 1001<br>
+            code_C AND code_D = 0101 AND 1001 = 0001 ≠ 0 → <strong>Trivial Reject（直接拒绝）</strong><br>
+            两点均在左边界之外。</p>
+            <p><strong>(c) 线段 EF：E(2,3), F(6,0)</strong><br>
+            E(2,3): 全在窗口内 → code_E = 0000<br>
+            F(6,0): x&gt;5→bit2=1, y&lt;1→bit3=1 → code_F = 0110<br>
+            code_E AND code_F = 0000，但 code_F ≠ 0000 → <strong>需要分割裁剪</strong><br>
+            需要在右边界 (x=5) 和下边界 (y=1) 分别求交。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q3 (Q6 变形). COP 移近时的效果分析</summary>
+          <div class="detail-body">
+            <p>If you move the COP <strong>closer</strong> to the projection plane, how does this affect:</p>
+            <p>① <strong>Foreshortening</strong>：<strong>增强</strong>。COP 越近，物体前后面的相对距离差比例越大，近大远小效果越明显。</p>
+            <p>② <strong>消失点间距</strong>：<strong>减小</strong>。消失点向画面靠近，透视变形更夸张。</p>
+            <p>③ <strong>深度感</strong>：<strong>增强</strong>。画面透视感更强，物体大小随距离变化更剧烈。</p>
+            <p>这正好是 Q6（COP 移远）的反向问题，三个效果全部相反。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q4. Sutherland-Hodgman 算法的 4 种 case 输出规则</summary>
+          <div class="detail-body">
+            <p>对每对相邻顶点（S → P），逐边裁剪时的输出规则：</p>
+            <table>
+              <thead><tr><th>S 位置</th><th>P 位置</th><th>输出</th><th>解释</th></tr></thead>
+              <tbody>
+                <tr><td>外</td><td>内</td><td>[交点, P]</td><td>线段从外进入窗口</td></tr>
+                <tr><td>内</td><td>内</td><td>[P]</td><td>线段完全在窗口内</td></tr>
+                <tr><td>内</td><td>外</td><td>[交点]</td><td>线段从内离开窗口</td></tr>
+                <tr><td>外</td><td>外</td><td>[]（无输出）</td><td>线段完全在窗口外</td></tr>
+              </tbody>
+            </table>
+            <p>记忆：只保留在窗口内的部分 + 进出口的交点。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q5. 一点/两点/三点透视的判断依据</summary>
+          <div class="detail-body">
+            <p>消失点数量由<strong>投影面与坐标轴的关系</strong>决定：</p>
+            <p>· <strong>1-point</strong>：投影面平行于两个坐标面 → 只有一组轴方向线汇聚<br>
+            · <strong>2-point</strong>：投影面平行于恰好一个坐标轴 → 两组轴方向线汇聚<br>
+            · <strong>3-point</strong>：投影面不平行于任何坐标面 → 三组轴方向线全部汇聚</p>
+            <p>理解关键：只有<strong>不平行于投影面</strong>的平行线组才会汇聚到消失点。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q6. 为何透视变换要放在裁剪之前？</summary>
+          <div class="detail-body">
+            <p>透视变换前，视锥体是一个 frustum（斜截锥体），6 个裁剪平面是任意方向的平面，裁剪计算复杂。</p>
+            <p>透视变换后，视锥体变为轴对齐长方体，6 个裁剪平面变为：</p>
+            <p>x = ±A, &nbsp; y = ±B, &nbsp; z = d, &nbsp; z = C</p>
+            <p>裁剪退化为简单的坐标范围检查（2D 比较），大幅简化了裁剪算法。</p>
+            <p>同时，透视变换保留了 z 值（z'=z），使得后续的深度比较（Z-buffer）和背面消除（n<sub>z</sub> 判断）也能被简化。</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Q7. 如果裁剪区域不是矩形窗口，而是圆形或球形区域，应该如何组织答案？</summary>
+          <div class="detail-body">
+            <p><strong>参考答案：</strong>先指出标准线段/多边形裁剪算法默认使用线性边界或多边形窗口；圆形/球形边界不能直接用固定 TBRL 区域码完整解决。</p>
+            <p><strong>方法 1：</strong>把曲线边界采样近似为多边形边界，再按 Sutherland-Hodgman 的 inside/outside 规则逐边裁剪。</p>
+            <p><strong>方法 2：</strong>直接用边界方程判断 inside/outside。例如圆形裁剪用 (x-c<sub>x</sub>)² + (y-c<sub>y</sub>)² ≤ r²，球形裁剪用 (x-c<sub>x</sub>)² + (y-c<sub>y</sub>)² + (z-c<sub>z</sub>)² ≤ r²；线段跨越边界时求交点。</p>
+            <p><strong>得分句：</strong>无论窗口形状如何，裁剪的核心都是 inside/outside 分类和边界交点计算。</p>
+          </div>
+        </details>
+      </section>
+
+      <!-- =============================== -->
+      <!-- Section 10: 最后速记 -->
+      <!-- =============================== -->
+      <section class="section" id="final-recall">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="badge-num">✓</div>
+            <div>
+              <h2>最后速记</h2>
+              <p class="lead">考前 5 分钟过一遍，这些一定要写出来</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick">
+          <div>
+            <p class="mini-title">必背公式 / 矩阵</p>
+            <ul class="checklist">
+              <li>正交投影矩阵：第三行 (0,0,0,d)</li>
+              <li>透视投影矩阵：第四行 <strong>(0,0,1/d,0)</strong></li>
+              <li>透视投影公式：x' = dx/z, y' = dy/z</li>
+              <li>Cohen-Sutherland 编码：<strong>TBRL</strong>（上下右左）</li>
+              <li>Trivial Accept：两端码 OR = 0000</li>
+              <li>Trivial Reject：两端码 AND ≠ 0000</li>
+            </ul>
+          </div>
+          <div>
+            <p class="mini-title">考场容易遗漏的细节</p>
+            <ul class="checklist">
+              <li>区分<strong>透视变换</strong>（z'=z）vs <strong>透视投影</strong>（z'=d）</li>
+              <li>COP → ∞ 退化为正交投影</li>
+              <li>S-H 的 4 种 case：外→内（交点+P）、内→内（P）、内→外（交点）、外→外（无）</li>
+              <li>消失点数量由投影面与坐标轴关系决定</li>
+              <li>透视变换后裁剪面轴对齐 → 裁剪简化为 2D 比较</li>
+              <li>非矩形裁剪：离散成多边形或用边界方程做 inside/outside 测试</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:20px;">
+          <strong>考前最后一瞥：</strong>透视投影矩阵第四行 (0,0,1/d,0)、Cohen-Sutherland 的 TBRL 编码、S-H 的 4 种 case 输出——这三个是本模块最高频的考点，确保能闭卷写出来。
+        </div>
+      </section>
+
+      <footer class="footer">
+        <strong>CS5182 Computer Graphics</strong> · M04 投影与裁剪 · Semester B 2025/26
+      </footer>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>

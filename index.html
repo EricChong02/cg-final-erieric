@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 Computer Graphics · 期末复习地图</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb;
+  --paper: #ffffff;
+  --ink: #172033;
+  --muted: #667085;
+  --soft: #eef4ff;
+  --blue: #155EEF;
+  --blue2: #003C88;
+  --red: #D7422A;
+  --green: #16803C;
+  --orange: #E86A00;
+  --purple: #6941C6;
+  --border: #d9e2ef;
+  --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08);
+  --radius: 18px;
+  --sidebar: 292px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 15px; line-height: 1.72; color: var(--ink);
+  background:
+    radial-gradient(circle at 14% 8%, rgba(21,94,239,0.18), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(215,66,42,0.12), transparent 26%),
+    linear-gradient(180deg, #fbfcff 0%, #f6f8fc 52%, #f2f5fb 100%);
+  min-height: 100vh;
+}
+
+/* ── topbar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px; background: rgba(255,255,255,.88);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border2); position: sticky; top: 0; z-index: 100;
+}
+.topbar-brand { display: flex; align-items: center; gap: 12px; }
+.badge-cs {
+  background: var(--blue2); color: #fff; font-weight: 800; font-size: 13px;
+  padding: 4px 12px; border-radius: 8px; letter-spacing: .5px;
+}
+.topbar-title { font-weight: 700; font-size: 16px; color: var(--ink); }
+.topbar-status {
+  font-size: 13px; color: var(--muted); background: var(--soft);
+  padding: 4px 14px; border-radius: 999px;
+}
+
+/* ── hero ── */
+.hero {
+  text-align: center; padding: 72px 24px 56px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(21,94,239,.14), transparent 50%),
+    radial-gradient(circle at 80% 60%, rgba(105,65,198,.08), transparent 40%),
+    linear-gradient(180deg, #f8faff 0%, #f3f6fc 100%);
+}
+.hero .kicker {
+  font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 16px;
+}
+.hero h1 { font-size: 48px; font-weight: 900; color: var(--blue2); line-height: 1.2; }
+.hero .sub { font-size: 17px; color: var(--muted); margin: 16px 0 32px; }
+.hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 14px;
+  text-decoration: none; transition: all .2s;
+}
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { background: var(--blue2); }
+.btn-ghost { background: var(--paper); color: var(--blue); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--soft); }
+
+/* ── exam weights ── */
+.exam-priority { max-width: 1280px; margin: 0 auto; padding: 42px 24px 16px; }
+.exam-priority h2 { font-size: 22px; font-weight: 900; color: var(--blue2); margin-bottom: 8px; }
+.exam-priority .weight-note { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+.weight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.weight-card {
+  background: rgba(255,255,255,.94); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 20px;
+  box-shadow: 0 10px 28px rgba(16,24,40,.05);
+}
+.weight-card strong { display: block; font-size: 28px; font-weight: 900; line-height: 1; margin-bottom: 10px; }
+.weight-card h3 { font-size: 15px; font-weight: 900; color: var(--ink); margin-bottom: 6px; }
+.weight-card p { font-size: 13px; color: var(--muted); line-height: 1.58; }
+.weight-card.basic strong { color: var(--blue); }
+.weight-card.calc strong { color: var(--orange); }
+.weight-card.combined strong { color: var(--green); }
+.weight-card .module-list { color: var(--ink); font-weight: 700; }
+
+/* ── study-paths ── */
+.study-paths { max-width: 1280px; margin: 0 auto; padding: 56px 24px 32px; }
+.study-paths h2 { font-size: 22px; font-weight: 800; color: var(--blue2); margin-bottom: 24px; }
+.paths-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.path-card {
+  background: rgba(255,255,255,.93); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 24px;
+  box-shadow: 0 10px 28px rgba(16,24,40,.05);
+}
+.path-card h3 { font-size: 16px; font-weight: 800; color: var(--blue2); margin-bottom: 8px; }
+.path-card .path-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+.path-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
+.path-step {
+  background: var(--soft); color: var(--blue); padding: 3px 10px; border-radius: 6px;
+  font-weight: 700;
+}
+.path-arrow { color: var(--muted); font-weight: 700; }
+
+/* ── modules grid ── */
+.modules-wrap { max-width: 1280px; margin: 0 auto; padding: 48px 24px 56px; }
+.modules-head { margin-bottom: 22px; }
+.modules-head h2 { font-size: 24px; font-weight: 900; color: var(--blue2); line-height: 1.25; }
+.modules-head p { margin-top: 6px; color: var(--muted); font-size: 14px; }
+.modules-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.module-card {
+  display: block; text-decoration: none;
+  background: rgba(255,255,255,.93); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 20px;
+  box-shadow: 0 10px 28px rgba(16,24,40,.05);
+  transition: box-shadow .2s, transform .2s;
+}
+.module-card:hover { box-shadow: 0 18px 40px rgba(16,24,40,.12); transform: translateY(-2px); }
+.module-card .mc-num { font-size: 11px; font-weight: 800; color: var(--blue); letter-spacing: 1px; text-transform: uppercase; }
+.module-card .mc-badge {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 6px; margin-bottom: 8px;
+}
+.module-card .mc-badge.star { background: #fff3e0; color: var(--orange); }
+.module-card .mc-badge.normal { background: var(--soft); color: var(--blue); }
+.module-card .mc-badge.scope { background: #ecfdf3; color: var(--green); }
+.module-card h3 { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 6px; line-height: 1.4; }
+.module-card .mc-enter { font-size: 13px; color: var(--blue); font-weight: 600; margin-top: 8px; }
+
+/* ── footer ── */
+.footer {
+  text-align: center; padding: 32px 24px; border-top: 1px solid var(--border2);
+  color: var(--muted); font-size: 13px;
+}
+.footer strong { color: var(--ink); }
+
+/* ── responsive ── */
+@media (max-width: 1100px) { .modules-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px) {
+  .modules-grid { grid-template-columns: 1fr; }
+  .weight-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 32px; }
+}
+@media (max-width: 980px) {
+  .paths-grid { grid-template-columns: 1fr; }
+  .weight-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- topbar -->
+<nav class="topbar">
+  <div class="topbar-brand">
+    <span class="badge-cs">CS5182</span>
+    <span class="topbar-title">Computer Graphics</span>
+  </div>
+  <span class="topbar-status">9 个模块 · 闭卷考试导向</span>
+</nav>
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">Final Exam Navigator</div>
+  <h1>CS5182 Computer Graphics 复习地图</h1>
+  <p class="sub">共 9 个模块 · 闭卷 10 题 · 考试导向</p>
+  <div class="hero-btns">
+    <a class="btn btn-primary" href="CS5182_Module_1_Review.html">▸ 开始 Module 1</a>
+    <a class="btn btn-ghost" href="#modules">查看全部模块</a>
+  </div>
+</header>
+
+<!-- exam weights -->
+<section class="exam-priority" aria-labelledby="exam-priority-title">
+  <h2 id="exam-priority-title">老师明确给出的题型占比</h2>
+  <p class="weight-note">下方是本站按考点内容对应到老师给的 24% / 33% / 43% 题型比例；43% 是综合范围合计，不代表 M07 或 M08 单独占 43%。</p>
+  <div class="weight-grid">
+    <div class="weight-card basic">
+      <strong>~24%</strong>
+      <h3>基础算法与操作理解</h3>
+      <p><span class="module-list">M01、M02、M04、M05、M09</span> 为主，考流程、算法比较、阶段作用和取舍。</p>
+    </div>
+    <div class="weight-card calc">
+      <strong>~33%</strong>
+      <h3>Transformation 计算题</h3>
+      <p><span class="module-list">M03</span> 是老师明示的 2 道简单计算题范围，优先级最高。</p>
+    </div>
+    <div class="weight-card combined">
+      <strong>~43%</strong>
+      <h3>综合应用范围</h3>
+      <p><span class="module-list">M06、M07、M08</span> 共同覆盖光线追踪、光照模型、着色、走样与反走样。</p>
+    </div>
+  </div>
+</section>
+
+<!-- module cards -->
+<section class="modules-wrap" id="modules">
+  <div class="modules-head">
+    <h2>模块入口</h2>
+    <p>按老师给的题型比例安排轻重缓急：先稳住 M03，再攻 M06/M07/M08，最后补齐基础理解模块。</p>
+  </div>
+  <div class="modules-grid" id="modulesGrid">
+
+    <a class="module-card" href="CS5182_Module_1_Review.html"
+      data-keywords="module 1 渲染管线 Rendering Pipeline 坐标系变换 光栅化 管线阶段 渲染管线总览 基础理解">
+      <div class="mc-num">MODULE 1</div>
+      <span class="mc-badge normal">基础理解</span>
+      <h3>渲染管线总览</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_2_Review.html"
+      data-keywords="module 2 三维物体建模 Object Modeling Polygon Mesh Parametric Surfaces Euler 点云 隐式曲面 细分曲面 体素 CSG 基础理解">
+      <div class="mc-num">MODULE 2</div>
+      <span class="mc-badge normal">基础理解</span>
+      <h3>三维物体建模</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_3_Review.html"
+      data-keywords="module 3 几何变换 矩阵计算 Transformation Matrix Homogeneous 齐次坐标 旋转 平移 缩放 三步技巧 复合变换 仿射 计算重点">
+      <div class="mc-num">MODULE 3</div>
+      <span class="mc-badge star">⭐ 老师明示 ~33%</span>
+      <h3>几何变换与矩阵计算</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_4_Review.html"
+      data-keywords="module 4 投影 裁剪 Projection Clipping Cohen-Sutherland Sutherland-Hodgman 透视 正交 平行投影 消失点 基础理解 计算">
+      <div class="mc-num">MODULE 4</div>
+      <span class="mc-badge normal">基础理解 + 计算</span>
+      <h3>投影与裁剪</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_5_Review.html"
+      data-keywords="module 5 隐藏面消除 Hidden Surface Z-buffer Painter Back-face Culling 深度缓冲 画家算法 物体空间 图像空间 基础理解">
+      <div class="mc-num">MODULE 5</div>
+      <span class="mc-badge normal">基础理解</span>
+      <h3>隐藏面消除</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_6_Review.html"
+      data-keywords="module 6 走样 反走样 Aliasing Anti-aliasing Nyquist Supersampling 超采样 随机采样 Catmull A-buffer 空间走样 时域走样 43% 综合题范围">
+      <div class="mc-num">MODULE 6</div>
+      <span class="mc-badge scope">43%范围之一</span>
+      <h3>走样与反走样</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_7_Review.html"
+      data-keywords="module 7 光照模型 着色 Phong Gouraud Illumination Shading 漫反射 镜面反射 环境光 平面着色 平滑着色 43% 综合题范围">
+      <div class="mc-num">MODULE 7</div>
+      <span class="mc-badge scope">43%范围之一</span>
+      <h3>光照模型与着色方法</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_8_Review.html"
+      data-keywords="module 8 光线追踪 辐射度 Ray Tracing Radiosity Shadow Reflection 反射 折射 全局光照 加速结构 BSP KD-Tree Bounding Volume 43% 综合题范围">
+      <div class="mc-num">MODULE 8</div>
+      <span class="mc-badge scope">43%范围之一</span>
+      <h3>光线追踪与辐射度</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+    <a class="module-card" href="CS5182_Module_9_Review.html"
+      data-keywords="module 9 实时渲染 GPU 动画 LOD Shadow Map Keyframe Motion Capture 渐进网格 顶点着色器 片段着色器 基础理解">
+      <div class="mc-num">MODULE 9</div>
+      <span class="mc-badge normal">基础理解</span>
+      <h3>实时渲染、GPU 与动画</h3>
+      <p class="mc-enter">进入模块 →</p>
+    </a>
+
+  </div>
+</section>
+
+<!-- study paths -->
+<section class="study-paths" id="paths">
+  <h2>学习路径</h2>
+  <div class="paths-grid">
+
+    <div class="path-card">
+      <h3>路径 A：光栅化渲染管线主干</h3>
+      <p class="path-desc">沿着渲染管线从建模到最终像素，先建立基础算法和阶段顺序。</p>
+      <div class="path-chain">
+        <span class="path-step">M01 管线总览</span><span class="path-arrow">→</span>
+        <span class="path-step">M02 建模</span><span class="path-arrow">→</span>
+        <span class="path-step">M03 ⭐变换</span><span class="path-arrow">→</span>
+        <span class="path-step">M04 投影</span><span class="path-arrow">→</span>
+        <span class="path-step">M05 隐藏面</span><span class="path-arrow">→</span>
+        <span class="path-step">M06 反走样</span><span class="path-arrow">→</span>
+        <span class="path-step">M07 光照</span>
+      </div>
+    </div>
+
+    <div class="path-card">
+      <h3>路径 B：计算题专项</h3>
+      <p class="path-desc">优先攻克老师明示的 ~33% 变换计算，再补投影和光照公式题。</p>
+      <div class="path-chain">
+        <span class="path-step">M03 ⭐变换</span><span class="path-arrow">→</span>
+        <span class="path-step">M04 投影</span><span class="path-arrow">→</span>
+        <span class="path-step">M07 光照</span><span class="path-arrow">→</span>
+        <span class="path-step">M08 光线追踪</span>
+      </div>
+    </div>
+
+    <div class="path-card">
+      <h3>路径 C：对比理解专项</h3>
+      <p class="path-desc">聚焦"比较两种方法"的考题，覆盖理解型题目核心。</p>
+      <div class="path-chain">
+        <span class="path-step">M05 隐藏面</span><span class="path-arrow">→</span>
+        <span class="path-step">M07 光照</span><span class="path-arrow">→</span>
+        <span class="path-step">M08 光追</span><span class="path-arrow">→</span>
+        <span class="path-step">M09 GPU/动画</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="footer">
+  <strong>CS5182 Computer Graphics</strong> · Semester B 2025/26 · City University of Hong Kong<br>
+  纯静态复习工具 · 闭卷考试导向 · file:// 可直接打开
+</footer>
+
+<script src="assets/review.js"></script>
+</body>
+</html>

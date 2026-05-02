@@ -1,0 +1,7 @@
+docs/
+.claude/
+.netlify/
+.DS_Store
+AGENTS.md
+CS5182_BUILD_PLAN.md
+REVIEW_SITE_DESIGN_GUIDE.md

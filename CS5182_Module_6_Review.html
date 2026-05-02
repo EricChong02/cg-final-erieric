@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS5182 M06 · 光栅化、走样与反走样</title>
+<link rel="stylesheet" href="assets/review.css">
+<style>
+:root {
+  --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #667085;
+  --soft: #eef4ff; --blue: #155EEF; --blue2: #003C88;
+  --red: #D7422A; --green: #16803C; --orange: #E86A00; --purple: #6941C6;
+  --border: #d9e2ef; --border2: #edf1f7;
+  --shadow: 0 16px 40px rgba(16,24,40,.08); --radius: 18px; --sidebar: 292px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.72;color:var(--ink);background:radial-gradient(circle at top right,rgba(21,94,239,.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f5f7fb 45%,#f7f8fb 100%);min-height:100vh}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:20px 0;max-width:700px}
+.pipe{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(16,24,40,.04);position:relative}
+.pipe b{font-size:14px;font-weight:800;color:var(--blue2);white-space:nowrap;min-width:100px}
+.pipe span{font-size:13px;color:var(--muted)}
+.pipe::after{content:"↓";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:14px;color:var(--border);font-weight:700;z-index:1}
+.pipe:last-child::after{display:none}
+
+/* grid */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.card{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05)}
+.card h3{font-size:15px;font-weight:800;color:var(--blue2);margin-bottom:8px}
+.card p,.card li{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{border:1px solid var(--border2);padding:10px 14px;text-align:left}
+th{background:var(--soft);font-weight:700;color:var(--blue2);font-size:13px}
+td{color:var(--ink);font-size:13px}
+
+/* mini-title */
+.mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+
+/* details */
+details{margin:12px 0;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+summary{padding:14px 18px;font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,255,255,.93);color:var(--ink)}
+summary:hover{background:var(--soft)}
+.detail-body{padding:16px 18px;border-top:1px solid var(--border2);font-size:14px;background:rgba(255,255,255,.7)}
+
+/* quick / final-recall */
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.quick .mini-title{font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:8px;border:none}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:6px 0;font-size:13px;color:var(--ink);padding-left:20px;position:relative}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+
+/* footer */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border2);color:var(--muted);font-size:13px}
+
+/* aa-method-card grid for 5 methods */
+.aa-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0}
+.aa-method{background:rgba(255,255,255,.93);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;box-shadow:0 10px 28px rgba(16,24,40,.05);border-top:4px solid var(--blue)}
+.aa-method.highlight{border-top:4px solid var(--orange)}
+.aa-method h3{font-size:16px;font-weight:900;color:var(--blue2);margin-bottom:6px}
+.aa-method .tag-line{font-size:12px;color:var(--muted);margin-bottom:10px}
+.aa-method .pros{color:var(--green);font-size:13px}
+.aa-method .cons{color:var(--red);font-size:13px}
+
+/* responsive overrides */
+@media(max-width:980px){
+  .grid-2,.grid-3,.quick{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+<div class="shell">
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <a class="back-link" href="index.html">← 返回首页</a>
+  <div class="mod-id">
+    <span class="badge-cs">CS5182</span>
+    <h2>M06 光栅化、走样与反走样</h2>
+  </div>
+  <nav class="nav-group">
+    <span class="nav-label">页面导航</span>
+    <a class="nav-link" href="#roadmap">总览与考试定位</a>
+    <a class="nav-link" href="#rasterization">光栅化过程</a>
+    <a class="nav-link" href="#spatial-aliasing">空间走样</a>
+    <a class="nav-link" href="#temporal-aliasing">时间走样</a>
+    <a class="nav-link" href="#nyquist">Nyquist 采样定理</a>
+    <a class="nav-link" href="#anti-aliasing">五种反走样方法</a>
+    <a class="nav-link" href="#comparison">五种方法对比表格</a>
+    <a class="nav-link" href="#templates">考场答案模板</a>
+    <a class="nav-link" href="#quiz">自测题</a>
+    <a class="nav-link" href="#final-recall">最后速记</a>
+  </nav>
+</aside>
+
+<!-- main content -->
+<main class="main">
+<div class="content">
+
+<!-- hero -->
+<header class="hero">
+  <div class="kicker">MODULE 6 · CS5182 Final Sprint</div>
+  <h2>光栅化、走样与反走样</h2>
+  <p class="hero-sub">这份页面按"闭卷考试能写出来"为目标设计，覆盖光栅化的点采样机制、空间/时间走样的产生原因、Nyquist 采样定理的理论依据、以及五种反走样方法的原理与对比。</p>
+  <div class="hero-grid">
+    <div class="hero-stat"><b>5</b><span>核心知识块</span></div>
+    <div class="hero-stat"><b>5+</b><span>高频考法</span></div>
+    <div class="hero-stat"><b>5</b><span>反走样方法</span></div>
+    <div class="hero-stat"><b>闭卷</b><span>答案模板优先</span></div>
+  </div>
+</header>
+
+<!-- module-entry -->
+<section class="section module-entry">
+  <div class="entry-grid">
+    <article class="concept-card">
+      <h3>本章定位</h3>
+      <p>解释光栅化为什么会产生走样（锯齿/闪烁/消失），以及五种反走样方法如何从不同角度缓解这一问题——核心是 <strong>Nyquist 采样定理</strong>。</p>
+    </article>
+    <article class="concept-card">
+      <h3>前置知识</h3>
+      <p>M05 隐藏面消除——理解光栅化后的像素处理流程（帧缓冲、Z-buffer），光栅化是走样产生的上下文。</p>
+    </article>
+    <article class="concept-card">
+      <h3>本章产出</h3>
+      <p>能解释空间走样的根本原因；能区分五种反走样方法的原理、优缺点和适用场景；能默写 Accumulation Buffer 独有优势。</p>
+    </article>
+    <article class="concept-card">
+      <h3>高频考法</h3>
+      <p>各反走样方法的原理和对比（P6-2）；Accumulation Buffer 独有优势（运动模糊/景深）；走样根因分析（P6-1）。</p>
+    </article>
+  </div>
+  <div class="bridge-note">
+    <strong>学习衔接：</strong><a href="CS5182_Module_5_Review.html">M05 隐藏面消除</a> → <strong>M06 光栅化、走样与反走样</strong> → <a href="CS5182_Module_7_Review.html">M07 光照模型与着色方法</a>
+  </div>
+</section>
+
+<!-- #roadmap -->
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">0</div>
+      <div>
+        <h2>总览与考试定位</h2>
+        <p class="lead">M06 在期中已覆盖，期末以理解+比较题为主</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 预计分值 ~5%</span>
+  </div>
+
+  <div class="note">
+    📌 <strong>本模块在考试中的定位：</strong>M06 是管线中"光栅化"阶段的深入展开。期中已覆盖基础概念，期末更可能出<strong>比较分析题</strong>——要求对比五种反走样方法的原理、优劣和适用场景。Accumulation Buffer 的运动模糊/景深优势是区别于超采样的关键考点。
+  </div>
+
+  <p>本模块的核心逻辑链：</p>
+  <div class="pipeline">
+    <div class="pipe"><b>光栅化</b><span>图元 → 像素覆盖集合，采用点采样判断</span></div>
+    <div class="pipe"><b>走样产生</b><span>点采样频率不足 → 空间走样（锯齿/消失/扭曲）</span></div>
+    <div class="pipe"><b>时间走样</b><span>空间走样在帧间传播 → 闪烁 / 车轮反转效应</span></div>
+    <div class="pipe"><b>Nyquist 定理</b><span>采样频率 ≥ 2× 最高信号频率 → 反走样的理论依据</span></div>
+    <div class="pipe"><b>五种反走样方法</b><span>提高采样密度 / 改变采样策略 / 精确面积计算</span></div>
+  </div>
+</section>
+
+<!-- #rasterization -->
+<section class="section" id="rasterization">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">1</div>
+      <div>
+        <h2>光栅化过程</h2>
+        <p class="lead">Primitive → 像素覆盖集合</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 理解走样的前提</span>
+  </div>
+
+  <p>光栅化（Rasterization）是渲染管线中<strong>将几何图元（三角形/线段）转换为屏幕上离散像素集合</strong>的阶段。它在 Screen Space（2D 像素坐标）中执行，位于 Clipping 之后、Hidden Surface Removal 之前。</p>
+
+  <div class="formula">
+    核心操作：对每个三角形 Primitive，判断屏幕上哪些像素被其覆盖<br>
+    → 被覆盖的像素进入 Fragment Processing（片段处理）<br>
+    → 最终写入 Frame Buffer
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>关键认知：</strong>光栅化采用的是<strong>点采样（Point Sampling）</strong>——对每个像素只取<strong>中心点</strong>判断是否在图元内。这是一个二值决策（覆盖/不覆盖），不关心图元在像素内实际覆盖了多大面积。<strong>这就是走样的根本来源。</strong>
+  </div>
+
+  <div class="note">
+    📌 <strong>光栅化的本质矛盾：</strong>连续几何体（无限精度）→ 离散像素网格（有限分辨率）。无论分辨率多高，只要采样点数量有限，理论上就无法完美表示任意高频细节。
+  </div>
+</section>
+
+<!-- #spatial-aliasing -->
+<section class="section" id="spatial-aliasing">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">2</div>
+      <div>
+        <h2>空间走样（Spatial Aliasing）</h2>
+        <p class="lead">点采样的直接后果：锯齿、细小物体消失、形状扭曲</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 高频简答题</span>
+  </div>
+
+  <p><strong>定义：</strong>空间走样是因图像采样频率不足（点采样）导致的视觉失真，表现为锯齿、细线消失、小物体形状失真等现象。</p>
+
+  <div class="formula">
+    <strong>产生机制——点采样的三种失效模式：</strong><br><br>
+    ① 若图元覆盖采样点 → 整个像素染色（<strong>过度表示</strong>）<br>
+    ② 若图元未覆盖采样点 → 整个像素不染色（<strong>完全丢失</strong>）<br>
+    ③ 即使图元覆盖了像素面积的 50%，只要中心点没被覆盖，像素就不染色
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>三种典型表现形式</h3>
+      <ul>
+        <li><strong>锯齿效应（Jaggies / Staircase Effect）</strong>：斜线和曲线边缘呈阶梯状</li>
+        <li><strong>细小物体消失</strong>：三角形比像素小时，可能无法落在任何采样点上 → 整个物体消失</li>
+        <li><strong>形状扭曲</strong>：相同的两个三角形因像素网格位置不同（sub-pixel offset）而呈现不同形状</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>根本原因（一句话）</h3>
+      <p style="font-size:15px;color:var(--blue2);font-weight:700;">光栅化采用<strong>点采样（Point Sampling）</strong>的粗糙近似，采样频率低于 Nyquist 频率时，高频细节无法正确重建。</p>
+    </div>
+  </div>
+
+  <div class="exam">
+    🚫 <strong>常见错误理解：</strong>"走样是光栅化固有的问题"——不准确。走样的根源是<strong>采样频率不足</strong>，而非光栅化本身。提高分辨率（增加采样点）理论上可以减少走样，这正是超采样的思路。
+  </div>
+</section>
+
+<!-- #temporal-aliasing -->
+<section class="section" id="temporal-aliasing">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">3</div>
+      <div>
+        <h2>时间走样（Temporal Aliasing）</h2>
+        <p class="lead">空间走样在时间维度上的传播与放大</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 两类原因要区分</span>
+  </div>
+
+  <p><strong>定义：</strong>时间走样是在动画序列中，由空间走样或时间域欠采样导致的相邻帧之间图像跳变、物体闪烁或运动方向错误的视觉伪影。</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>原因 1：空间走样引起（主要）</h3>
+      <ul>
+        <li>移动物体在不同帧采样到不同像素位置 → 锯齿形状"跳动"</li>
+        <li>细小物体在相邻帧间忽显忽隐（blinking）</li>
+        <li>碎片化物体在运动中不断分裂合并</li>
+      </ul>
+      <p style="margin-top:8px;font-size:12px;color:var(--orange);">📌 讲义原话："时域走样由空间走样导致"</p>
+    </div>
+    <div class="card">
+      <h3>原因 2：时间域欠采样</h3>
+      <ul>
+        <li>采样频率（帧率）低于运动频率的 2 倍</li>
+        <li><strong>车轮反转效应（Wagon Wheel Effect）</strong>：车轮高速旋转但低帧率采样 → 看起来逆向旋转</li>
+        <li>这是 Nyquist 定理在时间域的直接应用</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- #nyquist -->
+<section class="section" id="nyquist">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">4</div>
+      <div>
+        <h2>Nyquist 采样定理</h2>
+        <p class="lead">反走样所有方法的理论基石</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 理论依据必考</span>
+  </div>
+
+  <p><strong>定义：</strong>要完整重建频率不超过 $F_{\max}$ 的连续信号，采样频率 $N$ 必须至少为 $2F_{\max}$（Nyquist 频率）。</p>
+
+  <div class="formula">
+    <strong>Nyquist 条件：</strong> N ≥ 2 · F<sub>max</sub><br><br>
+    <strong>在图形学中的映射：</strong><br>
+    · 采样频率 = 图像分辨率（每单位长度的像素数）<br>
+    · 信号频率 = 图像中细节/纹理的空间频率<br>
+    · 若图像中存在高频细节（细线、棋盘格）→ 需要更高分辨率才能正确表示<br>
+    · 不满足 Nyquist 条件 → 产生走样
+  </div>
+
+  <div class="note">
+    📌 <strong>直觉理解：</strong>对于每隔一个像素交替黑白的棋盘格图案，至少需要每像素 2 个样本才能区分。如果每个像素只取 1 个样本 → 整个图案可能被采样成全黑或全白。
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>考试关联：</strong>超采样（Supersampling）的本质就是提高采样频率以满足 Nyquist 条件。所有反走样方法都可以从"如何逼近 Nyquist 条件"的角度来理解。
+  </div>
+</section>
+
+<!-- #anti-aliasing -->
+<section class="section" id="anti-aliasing">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">5</div>
+      <div>
+        <h2>五种反走样方法</h2>
+        <p class="lead">超采样 → 累积缓冲 → 随机采样 → Catmull → A-buffer，逐级递进</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 最高频对比题</span>
+  </div>
+
+  <!-- 5.1 Supersampling -->
+  <div class="mini-title">5.1 超采样（Supersampling / FSAA）</div>
+
+  <p><strong>核心原理：</strong>以高于最终分辨率的虚拟分辨率渲染图像，经低通滤波后降采样到目标分辨率。</p>
+
+  <div class="formula">
+    <strong>步骤：</strong><br>
+    1. 以 k×k 倍的高分辨率渲染虚拟图像（k=2 → 像素数 ×4）<br>
+    2. 对高分辨率图像施加低通滤波器（平均值/高斯等）<br>
+    3. 降采样（Downsample）到最终目标分辨率<br>
+    <br>
+    实际实现中步骤 2 和 3 合并：<br>
+    每个最终像素 = 对应 k×k 个子像素颜色的加权平均
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>✅ 优点</h3>
+      <ul>
+        <li>实现简单，可由硬件直接支持（GeForce 等 GPU 的 MSAA）</li>
+        <li>视觉效果明显改善</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>❌ 缺点</h3>
+      <ul>
+        <li>需要大量额外存储（k² 倍帧缓冲内存）</li>
+        <li>处理时间大幅增加</li>
+        <li><strong>只能减少走样，不能消除</strong>——本质上仍是点采样，只是更密</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="exam">
+    🚫 <strong>高频陷阱：</strong>"超采样能消除走样"——<strong>错误！</strong>超采样只能<strong>减少</strong>走样，不能<strong>消除</strong>。因为它本质上仍然是点采样（只是密度更高），除非采样密度达到无穷大。
+  </div>
+
+  <!-- 5.2 Accumulation Buffer -->
+  <div class="mini-title">5.2 累积缓冲（Accumulation Buffer）⚠️ 独有优势考点</div>
+
+  <p><strong>核心原理：</strong>通过多次渲染将图像在缓冲区中累加平均，用时间换空间，解决超采样内存消耗过大的问题。</p>
+
+  <div class="formula">
+    <strong>步骤：</strong><br>
+    设最终分辨率 m×n，子像素分辨率 a×b<br>
+    <br>
+    for i in 1..a×b:<br>
+    &nbsp;&nbsp;以子像素位置偏移渲染一帧（分辨率 m×n，而非 k·m × k·n）<br>
+    &nbsp;&nbsp;将结果累加到 Accumulation Buffer<br>
+    <br>
+    最终像素颜色 = Accumulation Buffer / (a×b)
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>✅ 优点</h3>
+      <ul>
+        <li>只需一个额外的正常分辨率缓冲区（比超采样省内存）</li>
+        <li>可实现<strong>运动模糊（Motion Blur）</strong>：沿时间轴累加多帧</li>
+        <li>可实现<strong>景深（Depth of Field）</strong>：改变相机位置累加</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>❌ 缺点</h3>
+      <ul>
+        <li>需要多次完整渲染（a×b 次），时间开销大</li>
+        <li>累积缓冲需要更高位深（防止多次累加溢出）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="warn">
+    ⚠️ <strong>超级考点：Accumulation Buffer 的独有优势</strong><br><br>
+    <strong>运动模糊（Motion Blur）</strong>和<strong>景深（Depth of Field）</strong>是 Accumulation Buffer <strong>独有</strong>的能力——超采样做不到！<br><br>
+    原因：超采样只是在一个瞬间对同一帧的多个子像素位置采样；而 Accumulation Buffer 可以跨<strong>时间</strong>（多帧）或跨<strong>相机位置</strong>（多视角）累加，这是本质区别。<br><br>
+    📌 <strong>考场直接写：</strong>"Accumulation Buffer 区别于 Supersampling 的关键优势是可以实现 Motion Blur 和 Depth of Field。"
+  </div>
+
+  <!-- 5.3 Stochastic Sampling -->
+  <div class="mini-title">5.3 随机采样（Stochastic Sampling）</div>
+
+  <p><strong>核心原理：</strong>用非均匀随机样本点代替规则网格样本点，将走样（有规律的锯齿伪影）转换为随机噪声，从视觉上更容易接受。</p>
+
+  <div class="formula">
+    <strong>常用分布：</strong><br>
+    ① <strong>Poisson-Disc：</strong>设定最小间距约束，保证样本均匀分布（最常用）<br>
+    ② <strong>Jittered（抖动）：</strong>在规则网格基础上每个样本加随机扰动<br>
+    ③ <strong>完全随机：</strong>均匀随机，可能产生聚集（不推荐）
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>✅ 优点</h3>
+      <ul>
+        <li>相同样本数下比超采样更好地减少走样（规律锯齿 → 随机噪声）</li>
+        <li>理论上样本足够时可消除走样</li>
+        <li>人眼对随机噪声的容忍度远高于规律性锯齿</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>❌ 缺点</h3>
+      <ul>
+        <li>引入随机噪声（在低样本数时尤为明显）</li>
+        <li>仍需大量存储和计算</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    📌 <strong>核心洞察：</strong>Stochastic Sampling 的关键区别在于——规则采样 → 走样是有规律的伪影（人眼非常敏感）；随机采样 → 走样变为随机噪声（人眼容忍度高）。相同视觉质量下所需样本数更少。
+  </div>
+
+  <!-- 5.4 Catmull's Algorithm -->
+  <div class="mini-title">5.4 Catmull 算法</div>
+
+  <p><strong>核心原理：</strong>将每个多边形精确裁剪到每个像素区域，计算实际覆盖面积并加权颜色，实现最精确的反走样（精确面积加权，而非点采样）。</p>
+
+  <div class="formula">
+    <strong>步骤：</strong><br>
+    对每个像素：<br>
+    1. 将所有多边形裁剪到该像素的矩形区域 → 形成多边形碎片<br>
+    2. 确定深度最近的可见碎片<br>
+    3. 计算每个碎片在像素内的<strong>面积</strong><br>
+    4. 面积 × 碎片颜色，加权求和<br>
+    5. 结果为该像素最终颜色（精确的覆盖率加权平均）
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>✅ 优点</h3>
+      <ul>
+        <li><strong>精确</strong>计算每个多边形对像素的颜色贡献（覆盖面积权重）</li>
+        <li>理论最优的反走样质量</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>❌ 缺点</h3>
+      <ul>
+        <li>多边形裁剪和深度排序计算量<strong>极大</strong></li>
+        <li>实际应用中效率过低，不常用于实时渲染</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 5.5 A-buffer -->
+  <div class="mini-title">5.5 A-buffer 方法</div>
+
+  <p><strong>核心原理：</strong>每个像素维护一个可见碎片链表（而非单一深度值），利用子像素掩码（subpixel mask）高效计算覆盖率，是 Catmull 的实用化改进。</p>
+
+  <div class="formula">
+    <strong>每像素存储：</strong><br>
+    · 一个链表，包含所有覆盖该像素的多边形碎片<br>
+    · 每个碎片有：深度值、颜色、子像素覆盖掩码（bitmask，如 4×4=16 bits）<br>
+    <br>
+    <strong>计算像素颜色：</strong><br>
+    用位运算（bitwise AND/OR）高效计算子像素掩码的覆盖面积 → 加权各碎片颜色
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>✅ 优点</h3>
+      <ul>
+        <li>处理代价只与<strong>可见碎片数</strong>有关，不与总分辨率成正比</li>
+        <li>可用位运算高效处理子像素掩码</li>
+        <li>可处理透明片段（链表结构天然支持）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>❌ 缺点</h3>
+      <ul>
+        <li>本质上仍是超采样算法（子像素掩码 = 固定位置的子采样点）</li>
+        <li>链表内存管理在硬件中实现复杂</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- #comparison -->
+<section class="section" id="comparison">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">6</div>
+      <div>
+        <h2>五种反走样方法对比表格</h2>
+        <p class="lead">闭卷能默写的全景对比</p>
+      </div>
+    </div>
+    <span class="exam-chip">⚡ 必背表格</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>方法</th>
+        <th>核心原理</th>
+        <th>内存需求</th>
+        <th>计算代价</th>
+        <th>特殊优势 / 限制</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Supersampling</strong></td>
+        <td>高分辨率渲染后降采样</td>
+        <td><span class="label red">高</span>（k² 倍帧缓冲）</td>
+        <td><span class="label orange">高</span></td>
+        <td>实现简单，可硬件加速（MSAA）；<strong>只能减少不能消除走样</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Accumulation Buffer</strong></td>
+        <td>多次偏移渲染后平均</td>
+        <td><span class="label green">低</span>（仅一个额外缓冲）</td>
+        <td><span class="label red">很高</span>（多次完整渲染）</td>
+        <td><strong>可实现运动模糊、景深</strong>（超采样做不到！）</td>
+      </tr>
+      <tr>
+        <td><strong>Stochastic Sampling</strong></td>
+        <td>随机非均匀采样点</td>
+        <td><span class="label orange">中</span></td>
+        <td><span class="label orange">中</span></td>
+        <td>将规律锯齿转化为随机噪声，视觉上更可接受</td>
+      </tr>
+      <tr>
+        <td><strong>Catmull's Algorithm</strong></td>
+        <td>裁剪多边形到像素，计算精确覆盖面积</td>
+        <td><span class="label orange">中</span></td>
+        <td><span class="label red">极高</span></td>
+        <td><strong>最精确的覆盖率计算</strong>（面积加权，非点采样）</td>
+      </tr>
+      <tr>
+        <td><strong>A-buffer</strong></td>
+        <td>每像素链表 + 子像素掩码</td>
+        <td><span class="label orange">动态</span>（取决于片段数）</td>
+        <td><span class="label orange">中</span></td>
+        <td>位运算高效处理掩码；可处理透明片段</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="mini-title">按题目关键词选择方法</p>
+  <table>
+    <thead><tr><th>题目关键词</th><th>优先回答</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>简单实现、直接提升边缘质量</td><td>Supersampling</td><td>高分辨率渲染再降采样，原理最直接</td></tr>
+      <tr><td>内存比超采样省、还能做运动模糊/景深</td><td>Accumulation Buffer</td><td>多次正常分辨率渲染后平均，用时间换空间</td></tr>
+      <tr><td>规律锯齿太明显，希望变成更可接受的噪声</td><td>Stochastic Sampling</td><td>非均匀随机采样破坏规律性走样</td></tr>
+      <tr><td>理论最精确、计算覆盖面积</td><td>Catmull's Algorithm</td><td>按像素精确裁剪并面积加权</td></tr>
+      <tr><td>透明片段、多片段、子像素掩码</td><td>A-buffer</td><td>每像素维护片段链表和覆盖掩码</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    ⚠️ <strong>考试中常见的混淆点：</strong><br>
+    ① 超采样 vs 累积缓冲 → 累积缓冲<strong>省内存但渲染次数多</strong>，且有运动模糊/景深额外能力<br>
+    ② 超采样 → 仍是有规律的网格采样（只是更密），<strong>不能消除</strong>走样<br>
+    ③ 随机采样 → 将规律锯齿变为噪声，<strong>视觉上更优</strong>但引入了噪声<br>
+    ④ Catmull vs A-buffer → Catmull 是理论最优但不可行，A-buffer 是其实用化近似<br>
+    ⑤ A-buffer → 虽然用了子像素掩码，但<strong>处理代价只与可见碎片数有关</strong>（这是关键优势）
+  </div>
+</section>
+
+<!-- #templates -->
+<section class="section" id="templates">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✍</div>
+      <div><h2>考场答案模板</h2></div>
+    </div>
+  </div>
+
+  <div class="mini-title">题型 1：解释空间走样的产生原因与表现（P6-1 类）</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① <strong>定义：</strong>空间走样是因图像采样频率不足导致的视觉失真。</p>
+    <p>② <strong>根本原因：</strong>光栅化采用 <strong>点采样（Point Sampling）</strong>，对每个像素只取中心点判断图元是否覆盖——覆盖则全染，不覆盖则全不染。这违反了 Nyquist 定理。</p>
+    <p>③ <strong>三种表现：</strong>(a) 锯齿效应 Jaggies——斜线呈阶梯状；(b) 细小物体消失——三角形小于像素时无法落在采样点上；(c) 形状扭曲——相同三角形因 sub-pixel offset 呈现不同形状。</p>
+  </div>
+
+  <div class="mini-title">题型 2：比较五种反走样方法（P6-2 类）</div>
+  <div class="answer-box">
+    <p><strong>答案框架（五个维度各一句话）：</strong></p>
+    <p>① <strong>Supersampling：</strong>高分辨率渲染 → 低通滤波 → 降采样。简单但耗内存（k² 倍），只能减少不能消除走样。</p>
+    <p>② <strong>Accumulation Buffer：</strong>多次偏移渲染 → 累加平均。省内存但多次完整渲染，<strong>独有 Motion Blur 和 Depth of Field</strong>。</p>
+    <p>③ <strong>Stochastic Sampling：</strong>随机非均匀采样点代替规则网格。将锯齿转化为噪声（人眼容忍度高），相同样本数下效果更好。</p>
+    <p>④ <strong>Catmull's Algorithm：</strong>裁剪多边形到每个像素，计算精确覆盖面积加权。最精确但计算量极大。</p>
+    <p>⑤ <strong>A-buffer：</strong>每像素链表 + 子像素掩码，用位运算计算覆盖率。代价与可见片段数有关，可处理透明。</p>
+  </div>
+
+  <div class="mini-title">题型 3：Accumulation Buffer 相比 Supersampling 的优势</div>
+  <div class="answer-box">
+    <p><strong>标准答案（两句话）：</strong></p>
+    <p>① <strong>内存优势：</strong>Accumulation Buffer 只需一个正常分辨率的额外缓冲区，而 Supersampling 需要 k² 倍帧缓冲。</p>
+    <p>② <strong>独有能力：</strong>Accumulation Buffer 可以实现<strong>运动模糊（Motion Blur，沿时间轴累加）</strong>和<strong>景深（Depth of Field，改变相机位置累加）</strong>——这是 Supersampling 做不到的，因为 Supersampling 只在一个瞬间对单帧采样。</p>
+  </div>
+
+  <div class="mini-title">题型 4：Nyquist 定理在图形学中的含义</div>
+  <div class="answer-box">
+    <p><strong>答案框架：</strong></p>
+    <p>① Nyquist 定理：采样频率 N ≥ 2 × 信号最高频率 F<sub>max</sub>，才能完整重建连续信号。</p>
+    <p>② 在图形学中：采样频率 = 图像分辨率，信号频率 = 图像中的高频细节（细线、棋盘格等）。</p>
+    <p>③ 当场景中存在高频细节，而分辨率（采样频率）不够时 → 不满足 Nyquist 条件 → 产生走样。</p>
+    <p>④ 反走样的本质：提高采样密度以满足 Nyquist 条件（超采样）；或用更好的采样策略（随机采样）。</p>
+  </div>
+</section>
+
+<!-- #quiz -->
+<section class="section" id="quiz">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">?</div>
+      <div><h2>自测题</h2></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Q1. (P6-1 改编) 解释空间走样在光栅化渲染中产生的根本原因，列出至少三种表现形式。</summary>
+    <div class="detail-body">
+      <p><strong>根本原因：</strong>光栅化采用<strong>点采样（Point Sampling）</strong>，对每个像素只取中心点判断图元是否覆盖。覆盖采样点 → 整个像素染色（过度表示）；未覆盖 → 整个像素不染色（完全丢失）。当采样频率低于 Nyquist 频率（2× 信号最高频率）时，高频细节无法正确重建。</p>
+      <p><strong>三种表现：</strong></p>
+      <ol>
+        <li><strong>锯齿效应（Jaggies / Staircase Effect）</strong>：斜线和曲线边缘呈现阶梯状</li>
+        <li><strong>细小物体消失</strong>：三角形比像素小时，无法落在任何采样点上 → 物体消失</li>
+        <li><strong>形状扭曲</strong>：相同三角形因像素网格位置不同（sub-pixel offset）呈现不同形状</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q2. (P6-2 改编) 从核心原理、内存需求、计算代价和特殊优势四个维度，比较 Supersampling 和 Accumulation Buffer。</summary>
+    <div class="detail-body">
+      <table>
+        <thead><tr><th>维度</th><th>Supersampling</th><th>Accumulation Buffer</th></tr></thead>
+        <tbody>
+          <tr><td><strong>核心原理</strong></td><td>高分辨率渲染后降采样</td><td>多次偏移渲染后累加平均</td></tr>
+          <tr><td><strong>内存需求</strong></td><td>高（k² 倍帧缓冲）</td><td>低（仅一个额外缓冲）</td></tr>
+          <tr><td><strong>计算代价</strong></td><td>高（一次性渲染 k² 倍像素）</td><td>很高（需要 a×b 次完整渲染）</td></tr>
+          <tr><td><strong>特殊优势</strong></td><td>实现简单，硬件直接支持</td><td><strong>可实现 Motion Blur 和 Depth of Field</strong></td></tr>
+          <tr><td><strong>限制</strong></td><td>只能减少不能消除走样（仍是点采样）</td><td>需要更高位深防溢出</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q3. Stochastic Sampling 相比 Supersampling 在视觉质量上有什么优势？原理是什么？</summary>
+    <div class="detail-body">
+      <p><strong>优势：</strong>相同样本数下，Stochastic Sampling 比 Supersampling 产生更可接受的视觉效果。</p>
+      <p><strong>原理：</strong>Supersampling 使用规则网格采样 → 走样是<strong>有规律的锯齿伪影</strong>（人眼对其非常敏感）。Stochastic Sampling 使用非均匀随机采样点 → 走样被转化为<strong>随机噪声</strong>（人眼对随机噪声的容忍度远高于规律锯齿）。这是利用人眼视觉特性优化感知质量的策略。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q4. Catmull 算法为什么被称为"最精确"的反走样方法？它的主要缺点是什么？</summary>
+    <div class="detail-body">
+      <p><strong>精确的原因：</strong>Catmull 算法将每个多边形精确裁剪到每个像素区域，计算实际<strong>覆盖面积</strong>（而非点采样），然后做面积加权颜色平均。所有其他方法都是对覆盖率的<strong>近似</strong>（点采样或子采样），而 Catmull 是<strong>精确计算</strong>。</p>
+      <p><strong>主要缺点：</strong>多边形裁剪和深度排序的计算量<strong>极大</strong>，在实际应用中效率过低，不适合实时渲染。A-buffer 是对 Catmull 思路的实用化改进。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q5. A-buffer 方法中"子像素掩码（subpixel mask）"的作用是什么？为何 A-buffer 的代价只与可见碎片数有关？</summary>
+    <div class="detail-body">
+      <p><strong>子像素掩码的作用：</strong>用一个 bitmask（如 4×4 = 16 bits）表示一个多边形碎片覆盖了像素内哪些子像素位置。通过位运算（bitwise AND/OR）可以高效计算各碎片的覆盖率，无需精确的几何裁剪。</p>
+      <p><strong>代价与可见碎片数有关：</strong>A-buffer 每个像素维护一个链表，只存储覆盖该像素的碎片。与 Supersampling 不同（需要对所有 k² 个子像素做全分辨率渲染），A-buffer 的计算量取决于<strong>每个像素被多少个多边形覆盖</strong>。简单场景（大多像素只被 1-2 个面覆盖）下代价很低。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q6. (综合) 为什么说"超采样不能消除走样"？哪种方法在理论上可以消除走样？</summary>
+    <div class="detail-body">
+      <p><strong>超采样不能消除走样：</strong>因为超采样本质上仍然是<strong>点采样</strong>——只不过用更密的 k×k 个子采样点代替了原来的 1 个采样点。只要采样密度是有限的（k 是有限的），就仍然存在未被采样的高频信号，走样就不可能完全消失。超采样只能让走样在视觉上<strong>减少</strong>到可以接受的程度。</p>
+      <p><strong>理论上可消除走样的方法：</strong></p>
+      <ul>
+        <li><strong>Catmull 算法</strong>——不依赖点采样，而是精确计算多边形在像素内的覆盖面积（面积加权），因此理论上没有走样。</li>
+        <li><strong>Stochastic Sampling</strong>——当样本数趋于无穷时，随机采样的期望值收敛到真实值（但有限样本时仍有噪声）。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q7. (真题变形) 解释时间走样的两种产生原因，并各举一个例子。</summary>
+    <div class="detail-body">
+      <p><strong>原因 1：空间走样引起（主要原因）</strong></p>
+      <p>移动物体在连续帧之间，空间走样的表现不同 → 相邻帧图像突变。例如：一个比像素略大的三角形在水平移动时，不同帧落在不同采样点位置，导致锯齿形状持续"跳动"。</p>
+      <p><strong>原因 2：时间域欠采样</strong></p>
+      <p>采样频率（帧率）低于运动频率的 2 倍。例如：<strong>车轮反转效应（Wagon Wheel Effect）</strong>——车轮高速旋转，但低帧率摄像机采样到的帧恰好使轮辐看起来在<strong>逆向旋转</strong>。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Q8. 给定场景时如何快速选择合适的反走样方法？</summary>
+    <div class="detail-body">
+      <p><strong>边缘锯齿明显、实现简单：</strong>Supersampling。它最容易解释，但内存和像素量按 k² 增长。</p>
+      <p><strong>内存受限但可多次渲染：</strong>Accumulation Buffer。它只需正常分辨率缓冲，代价是多次完整渲染，并能顺带实现 Motion Blur / Depth of Field。</p>
+      <p><strong>规则锯齿很刺眼：</strong>Stochastic Sampling。把规律伪影变为随机噪声，视觉上更可接受。</p>
+      <p><strong>题目强调理论精确覆盖率：</strong>Catmull's Algorithm。按面积加权，最精确但计算量最大。</p>
+      <p><strong>题目出现透明、多片段、subpixel mask：</strong>A-buffer。它是 Catmull 思想的实用化近似。</p>
+    </div>
+  </details>
+</section>
+
+<!-- #final-recall -->
+<section class="section" id="final-recall">
+  <div class="section-head">
+    <div class="section-title">
+      <div class="badge-num">✓</div>
+      <div><h2>最后速记</h2></div>
+    </div>
+  </div>
+
+  <div class="quick">
+    <div>
+      <p class="mini-title">必背定义 / 概念</p>
+      <ul class="checklist">
+        <li>走样根本原因：<strong>点采样（Point Sampling）</strong></li>
+        <li>Nyquist：N ≥ 2F<sub>max</sub></li>
+        <li>空间走样三表现：Jaggies / 细小物体消失 / 形状扭曲</li>
+        <li>时间走样主因：<strong>空间走样导致</strong></li>
+        <li>时间走样次因：时间域欠采样 → Wagon Wheel Effect</li>
+        <li>Supersampling：高分辨率渲染 → 降采样。只能<strong>减少</strong>不能消除</li>
+        <li>Accumulation Buffer：多次渲染 → 累加。独有 <strong>Motion Blur + DOF</strong></li>
+        <li>Stochastic：随机采样 → 锯齿变噪声</li>
+        <li>Catmull：精确面积加权 → 理论最优</li>
+        <li>A-buffer：链表 + bitmask → 代价与片段数相关</li>
+      </ul>
+    </div>
+    <div>
+      <p class="mini-title">考场容易遗漏的细节</p>
+      <ul class="checklist">
+        <li>超采样"不能消除"走样——考场上极易写成"消除"</li>
+        <li>Accumulation Buffer 的 Motion Blur / DOF 是<strong>独有</strong>优势</li>
+        <li>随机采样的"随机"是指采样点<strong>位置</strong>随机，不是颜色随机</li>
+        <li>Catmull 和 A-buffer 的关系：Catmull 是理论框架，A-buffer 是其实用化</li>
+        <li>A-buffer 的子像素掩码本质仍是超采样（固定子像素位置）</li>
+        <li>Stochastic Sampling 的三个分布记得住：Poisson-Disc（最常用）、Jittered、完全随机</li>
+        <li>时间走样的两类原因要分开答，不要说"时间走样就是空间走样"</li>
+        <li>Nyquist 定理映射：采样频率 = 分辨率，信号频率 = 图像高频细节</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="footer">
+  CS5182 Computer Graphics · Final Exam Review Site · M06 光栅化、走样与反走样
+</footer>
+
+</div><!-- .content -->
+</main>
+</div><!-- .shell -->
+
+<script src="assets/review.js"></script>
+</body>
+</html>
